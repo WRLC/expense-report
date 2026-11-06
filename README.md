@@ -17,7 +17,7 @@ npm run dev
 
 ## Accounting email configuration
 
-The form includes an accounting recipient field and an employee contact email field. The employee email is included in the PDF for replies. Background delivery is not enabled yet: GitHub Pages is static hosting and cannot securely send email by itself. WRLC must provide an approved mail endpoint or provider and deployment credentials before the **Send report to accounting** action can be connected. The PDF download remains available for local submission in the meantime.
+The form includes an accounting recipient field and an employee contact email field. The **Download PDF & prepare Gmail draft** action downloads the report and opens a prefilled Gmail compose window with the employee contact and trip details in the message. Attach the downloaded PDF in Gmail before sending; browsers do not allow this site to attach a local file to a Gmail draft automatically. The employee email is included in the PDF for replies.
 
 ## Build and deploy
 

@@ -32,14 +32,14 @@ describe('expense report form', () => {
 
   it('keeps named trips separate when switching between them', () => {
     render(<App />);
-    const selector = screen.getByLabelText('Current trip') as HTMLSelectElement;
-    const originalTripId = selector.value;
+    expect(screen.queryByLabelText('Current trip')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Trip name'), { target: { value: 'Conference' } });
     fireEvent.change(screen.getByLabelText('Employee name'), { target: { value: 'Taylor Staff' } });
     fireEvent.click(screen.getByRole('button', { name: 'New trip' }));
+    const selector = screen.getByLabelText('Current trip') as HTMLSelectElement;
     fireEvent.change(screen.getByLabelText('Trip name'), { target: { value: 'Site visit' } });
     fireEvent.change(screen.getByLabelText('Employee name'), { target: { value: 'Morgan Staff' } });
-    fireEvent.change(selector, { target: { value: originalTripId } });
+    fireEvent.change(selector, { target: { value: [...selector.options].find(option => option.text === 'Conference')!.value } });
     expect(screen.getByLabelText('Trip name')).toHaveValue('Conference');
     expect(screen.getByLabelText('Employee name')).toHaveValue('Taylor Staff');
   });
@@ -55,10 +55,29 @@ describe('expense report form', () => {
     expect(sorted[1].value).toBe('2026-11-06');
   });
 
-  it('keeps background sending disabled until an approved mail service is configured', () => {
+  it('opens Gmail with a prepared draft and downloads the PDF', async () => {
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const gmailTab = { opener: window, location: { href: '' }, close: vi.fn() };
+    const open = vi.spyOn(window, 'open').mockReturnValue(gmailTab as unknown as Window);
     render(<App />);
-    expect(screen.getByRole('button', { name: 'Send report to accounting' })).toBeDisabled();
-    expect(screen.getByText(/approved WRLC delivery service/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Employee name'), { target: { value: 'Taylor Staff' } });
+    fireEvent.change(screen.getByLabelText('Employee email'), { target: { value: 'taylor@example.org' } });
+    fireEvent.change(screen.getByLabelText('Accounting email'), { target: { value: 'accounting@example.org' } });
+    const row = document.querySelector('.expense-row')!;
+    fireEvent.change(row.querySelector('input[type="date"]')!, { target: { value: '2026-11-04' } });
+    fireEvent.change(row.querySelector('input[placeholder="e.g. Train to annual meeting"]')!, { target: { value: 'Train to conference' } });
+    fireEvent.change(row.querySelector('select')!, { target: { value: 'Travel' } });
+    fireEvent.change(row.querySelector('input[inputmode="decimal"]')!, { target: { value: '19.50' } });
+    fireEvent.click(screen.getByLabelText('I certify that the information entered in this expense report is complete and accurate.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Download PDF & prepare Gmail draft' }));
+    await waitFor(() => expect(gmailTab.location.href).toContain('https://mail.google.com/mail/'));
+    const gmailUrl = new URL(gmailTab.location.href);
+    expect(gmailUrl.searchParams.get('to')).toBe('accounting@example.org');
+    expect(gmailUrl.searchParams.get('body')).toContain('taylor@example.org');
+    expect(open).toHaveBeenCalledOnce();
+    expect(create).toHaveBeenCalledOnce();
+    expect(screen.getByText(/Attach the downloaded PDF before sending/)).toBeInTheDocument();
   });
 
   it('generates and downloads a report PDF after validation', async () => {
