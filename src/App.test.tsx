@@ -69,6 +69,13 @@ describe('expense report form', () => {
     expect(screen.getByRole('link', { name: 'Staff homepage' }).querySelector('svg')).toBeInTheDocument();
   });
 
+  it('updates the report ID from the submitted date and last name', () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText('Employee name'), { target: { value: 'Taylor Alex Shields' } });
+    fireEvent.change(screen.getByLabelText('Date submitted'), { target: { value: '2026-11-04' } });
+    expect(document.querySelector('.report-tag')).toHaveTextContent('WR-2026-11-04-Shields');
+  });
+
   it('restores an attached receipt after the form is mounted again', async () => {
     const file = new File(['image bytes'], 'receipt.png', { type: 'image/png' });
     const first = render(<App />);

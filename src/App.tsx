@@ -8,6 +8,7 @@ import { createTrip, importTripStore, loadTripStore } from './lib/trips';
 import { clearReceiptStorage, deleteExpenseReceipts, deleteStoredReceipt, deleteTripReceipts, loadReceipts, saveReceipt } from './lib/receiptStorage';
 import { reportFilename } from './lib/filenames';
 import { loadProfile, saveProfile, type EmployeeProfile } from './lib/profile';
+import { makeReportId } from './lib/reportId';
 import { FinancialSummary } from './components/FinancialSummary';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { ExpenseRow } from './components/ExpenseRow';
@@ -20,11 +21,16 @@ type ReceiptStore = Map<string, Map<string, Receipt[]>>;
 type PropsAction<T> = T | ((current: T) => T);
 
 function fillBlankEmployeeDetails(savedStore: TripStore, profile: EmployeeProfile): TripStore {
-  return { ...savedStore, trips: savedStore.trips.map(trip => ({ ...trip, report: {
-    ...trip.report,
-    employee: profile.name || trip.report.employee,
-    employeeEmail: profile.email || trip.report.employeeEmail,
-  } })) };
+  return { ...savedStore, trips: savedStore.trips.map(trip => {
+    const employee = profile.name || trip.report.employee;
+    const employeeEmail = profile.email || trip.report.employeeEmail;
+    return { ...trip, report: {
+      ...trip.report,
+      employee,
+      employeeEmail,
+      reportNumber: makeReportId(trip.report.submittedDate, employee),
+    } };
+  }) };
 }
 
 function loadStoreWithProfile(): TripStore { return fillBlankEmployeeDetails(loadTripStore(), loadProfile()); }
@@ -110,8 +116,16 @@ export default function App() {
       ...trip.report,
       employee: next.name,
       employeeEmail: next.email,
+      reportNumber: makeReportId(trip.report.submittedDate, next.name),
       ...(trip.id === currentTrip.id ? { [key]: value } : {}),
     } })) }));
+  };
+  const updateSubmittedDate = (submittedDate: string) => {
+    setStore(current => ({ ...current, trips: current.trips.map(trip => trip.id === currentTrip.id ? { ...trip, report: {
+      ...trip.report,
+      submittedDate,
+      reportNumber: makeReportId(submittedDate, trip.report.employee),
+    } } : trip) }));
   };
   const updateSavedProfile = (key: keyof EmployeeProfile, value: string) => {
     setProfileDraft(current => ({ ...current, [key]: value }));
@@ -124,6 +138,7 @@ export default function App() {
       ...trip.report,
       employee: profileDraft.name,
       employeeEmail: profileDraft.email,
+      reportNumber: makeReportId(trip.report.submittedDate, profileDraft.name),
     } })) }));
     setNotice('Employee information saved and synced to all trips.');
   };
@@ -169,6 +184,7 @@ export default function App() {
     const trip = createTrip();
     trip.report.employee = profile.name;
     trip.report.employeeEmail = profile.email;
+    trip.report.reportNumber = makeReportId(trip.report.submittedDate, profile.name);
     setStore(current => ({ ...current, activeTripId: trip.id, trips: [...current.trips, trip] }));
     setErrors({});
     setNotice('New trip started. Name it and add expenses as you go.');
@@ -297,6 +313,7 @@ export default function App() {
     const trip = createTrip();
     trip.report.employee = profile.name;
     trip.report.employeeEmail = profile.email;
+    trip.report.reportNumber = makeReportId(trip.report.submittedDate, profile.name);
     setStore({ version: 2, activeTripId: trip.id, trips: [trip] });
     setReceiptsByTrip(new Map()); localStorage.removeItem(DRAFT_KEY); setErrors({}); setNotice('Local trip data cleared.');
     void clearReceiptStorage().catch(() => setNotice('Trips cleared, but saved receipt files could not be removed.'));
@@ -319,7 +336,7 @@ export default function App() {
     <div aria-live="polite" role="status" className={`notice ${notice ? 'notice-visible' : ''}`}>{notice}</div>
     <section className="trip-bar card"><div className="trip-select">{store.trips.length > 1 && <label htmlFor="active-trip">Current trip<select id="active-trip" value={currentTrip.id} onChange={event => setActiveTrip(event.target.value)}>{store.trips.map((trip,index)=><option key={trip.id} value={trip.id}>{trip.name.trim() || `Untitled trip ${index+1}`}</option>)}</select></label>}<label htmlFor="trip-name">Trip name<input id="trip-name" value={currentTrip.name} onChange={event => renameTrip(event.target.value)} placeholder="e.g. Annual conference · Chicago" maxLength={100}/></label></div><div className="trip-actions"><button className="btn secondary" onClick={createNewTrip}><Plus/>New trip</button><button className="btn text-btn" onClick={deleteCurrentTrip}><Trash2/>Delete trip</button><span>{store.trips.length} trip{store.trips.length===1?'':'s'} saved here</span></div></section>
     <div className="layout"><div className="form-column">
-      <section className="card"><div className="section-head"><div><span className="step">01</span><h2>Employee information</h2></div><span className="report-tag">{report.reportNumber}</span></div><div className="field-grid"><label>Employee name<input value={report.employee} onChange={event=>updateEmployeeField('employee',event.target.value)} aria-invalid={!!errors.employee} aria-describedby={errors.employee?'error-employee':undefined}/>{errors.employee&&<small id="error-employee" role="alert" className="error">{errors.employee}</small>}</label><label>Employee email<input type="email" autoComplete="email" placeholder="name@example.org" value={report.employeeEmail} onChange={event=>updateEmployeeField('employeeEmail',event.target.value)} aria-invalid={!!errors.employeeEmail} aria-describedby={errors.employeeEmail?'error-employee-email':undefined}/>{errors.employeeEmail&&<small id="error-employee-email" role="alert" className="error">{errors.employeeEmail}</small>}</label><label>Date submitted<input type="date" value={report.submittedDate} onChange={event=>setReportField('submittedDate',event.target.value)}/></label></div></section>
+      <section className="card"><div className="section-head"><div><span className="step">01</span><h2>Employee information</h2></div><span className="report-tag">{report.reportNumber}</span></div><div className="field-grid"><label>Employee name<input value={report.employee} onChange={event=>updateEmployeeField('employee',event.target.value)} aria-invalid={!!errors.employee} aria-describedby={errors.employee?'error-employee':undefined}/>{errors.employee&&<small id="error-employee" role="alert" className="error">{errors.employee}</small>}</label><label>Employee email<input type="email" autoComplete="email" placeholder="name@example.org" value={report.employeeEmail} onChange={event=>updateEmployeeField('employeeEmail',event.target.value)} aria-invalid={!!errors.employeeEmail} aria-describedby={errors.employeeEmail?'error-employee-email':undefined}/>{errors.employeeEmail&&<small id="error-employee-email" role="alert" className="error">{errors.employeeEmail}</small>}</label><label>Date submitted<input type="date" value={report.submittedDate} onChange={event=>updateSubmittedDate(event.target.value)}/></label></div></section>
       <section className="card"><div className="section-head"><div><span className="step">02</span><h2>Expenses</h2></div><button className="btn small secondary" onClick={sortRows}><ArrowDownWideNarrow/>Sort by date</button></div><div className="table-head"><span>Date</span><span>Expense description / business purpose</span><span>Expense type</span><span>Amount</span><span>Receipts</span><span></span></div>
         {report.expenses.map((row,index)=><ExpenseRow key={row.id} expense={row} index={index} errors={errors} receipts={receipts.get(row.id)||[]} onUpdate={updateExpense} onAttach={addReceipt} onPreview={openPreview} onRemoveReceipt={receiptId=>removeReceipt(row.id, receiptId)} onDuplicate={()=>updateCurrentReport(current=>({ ...current, expenses:[...current.expenses.slice(0,index+1),{...row,id:crypto.randomUUID()},...current.expenses.slice(index+1)]}))} onDelete={()=>deleteExpense(row,index)}/>)}
         <div className="table-footer"><button className="btn secondary" onClick={()=>updateCurrentReport(current=>({...current,expenses:[...current.expenses,newExpense()]}))}><Plus/>Add expense</button><span>Receipt files are saved on this device and included in the PDF when selected.</span></div>{errors.expenses&&<small role="alert" className="error">{errors.expenses}</small>}</section>

@@ -1,8 +1,9 @@
 import type {Report,Trip,TripStore} from '../types/expenseReport';
 import {DRAFT_KEY} from '../config/appConfig';
+import {makeReportId} from './reportId';
 const localDate=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const token=()=>crypto.randomUUID();
-export function createReport():Report{return{employee:'',employeeEmail:'',submittedDate:localDate(),reportNumber:`WR-${new Date().getFullYear()}-${Math.random().toString(36).slice(2,7).toUpperCase()}`,expenses:[{id:token(),date:'',description:'',type:'',amount:''},{id:token(),date:'',description:'',type:'',amount:''},{id:token(),date:'',description:'',type:'',amount:''}],priorBalance:'',advances:[{id:token(),description:'',amount:''},{id:token(),description:'',amount:''},{id:token(),description:'',amount:''}],certified:false,certificationDate:localDate()}}
+export function createReport():Report{const submittedDate=localDate();return{employee:'',employeeEmail:'',submittedDate,reportNumber:makeReportId(submittedDate,''),expenses:[{id:token(),date:'',description:'',type:'',amount:''},{id:token(),date:'',description:'',type:'',amount:''},{id:token(),date:'',description:'',type:'',amount:''}],priorBalance:'',advances:[{id:token(),description:'',amount:''},{id:token(),description:'',amount:''},{id:token(),description:'',amount:''}],certified:false,certificationDate:localDate()}}
 export function createTrip(name=''):Trip{return{id:token(),name,report:createReport()}}
 export function initialTripStore():TripStore{const trip=createTrip();return{version:2,activeTripId:trip.id,trips:[trip]}}
 function isTripStore(value:unknown):value is TripStore{if(!value||typeof value!=='object')return false;const v=value as Partial<TripStore>;return v.version===2&&Array.isArray(v.trips)&&v.trips.length>0&&typeof v.activeTripId==='string'&&v.trips.some(t=>t.id===v.activeTripId&&!!t.report?.expenses&&!!t.report?.advances)}
