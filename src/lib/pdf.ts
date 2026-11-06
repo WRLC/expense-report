@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf'; import { PDFDocument } from 'pdf-lib'; import type { Report, Receipt } from '../types/expenseReport'; import { dollars, getTotals, parseCents } from './calculations';
+import { jsPDF } from 'jspdf'; import { PDFDocument, type PDFEmbeddedPage } from 'pdf-lib'; import type { Report, Receipt } from '../types/expenseReport'; import { dollars, getTotals, parseCents } from './calculations';
 const date=(v:string)=>v?new Date(v+'T12:00:00').toLocaleDateString('en-US'):'—';
 const pdfSafeText=(value:string)=>value.normalize('NFKD').replace(/\p{M}/gu,'').replace(/[\u00a0\u202f]/g,' ').replace(/[–—−]/g,'-').replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/·/g,'-').replace(/[^\x20-\x7e]/g,'?');
 export const hasAdvanceValues=(report:Report)=>((parseCents(report.priorBalance)??0)!==0)||report.advances.some(a=>a.description.trim()||a.amount.trim());
@@ -32,7 +32,7 @@ export async function makePdf(report:Report, receipts:Map<string,Receipt[]>, inc
  pdf.setFontSize(10);pdf.text(`Trip: ${tripName||'Untitled trip'}`,left,y);pdf.text(`Date submitted: ${date(report.submittedDate)}`,right,y,{align:'right'});y+=16;pdf.text(`Employee: ${report.employee||'—'}`,left,y);if(report.employeeEmail)pdf.text(`Employee email: ${report.employeeEmail}`,right,y,{align:'right'});y+=25;
  section('EXPENSES');pdf.setFont('helvetica','bold');pdf.setFontSize(8);pdf.text('DATE',left,y);pdf.text('DESCRIPTION / BUSINESS PURPOSE',left+82,y);pdf.text('TYPE',425,y);pdf.text('AMOUNT',right,y,{align:'right'});y+=13;
  const filled=report.expenses.filter(x=>x.date||x.description||x.type||x.amount);
- for(const ex of filled){const desc=pdf.splitTextToSize(ex.description||'—',270) as string[];const h=Math.max(29,desc.length*11+17);if(y+h>735){pdf.addPage();y=45}pdf.setFont('helvetica','normal');pdf.setFontSize(9);pdf.text(date(ex.date),left,y);pdf.text(desc,left+82,y);pdf.text(ex.type||'—',425,y);pdf.text(dollars(parseCents(ex.amount)??0),right,y,{align:'right'});line(y+h-5);y+=h}
+ for(const ex of filled){const desc=pdf.splitTextToSize(ex.description||'—',270) as string[];const h=Math.max(38,desc.length*11+27);if(y+h>735){pdf.addPage();y=45}pdf.setFont('helvetica','normal');pdf.setFontSize(9);pdf.text(date(ex.date),left,y);pdf.text(desc,left+82,y);pdf.text(ex.type||'—',425,y);pdf.text(dollars(parseCents(ex.amount)??0),right,y,{align:'right'});line(y+desc.length*11+9);y+=h}
  const totals=getTotals(filled,report.priorBalance,report.advances);y+=8;pdf.setFont('helvetica','bold');pdf.text('ALL EXPENSES',left+300,y);pdf.text(dollars(totals.allExpenses),right,y,{align:'right'});y+=21;
  const advances=report.advances.filter(a=>a.description.trim()||a.amount.trim());if(hasAdvanceValues(report)){section('ADVANCES RECEIVED FROM WRLC');pdf.setFont('helvetica','normal');pdf.setFontSize(9);pdf.text('Balance from last report',left,y);pdf.text(dollars(parseCents(report.priorBalance)??0),right,y,{align:'right'});y+=16;for(const a of advances){pdf.text(a.description||'Advance',left,y);pdf.text(dollars(parseCents(a.amount)??0),right,y,{align:'right'});y+=15}pdf.setFont('helvetica','bold');pdf.text('LESS ADVANCES',left+300,y);pdf.text(dollars(totals.totalAdvances),right,y,{align:'right'});y+=24}
  section('BALANCE DUE');const status=totals.balanceDue>0?'WRLC owes employee':totals.balanceDue<0?'Employee owes WRLC':'Account balanced';pdf.setFont('helvetica','bold');pdf.setFontSize(12);pdf.text(status,left,y);pdf.text(dollars(totals.balanceDue),right,y,{align:'right'});y+=35;
@@ -46,6 +46,33 @@ export async function makePdf(report:Report, receipts:Map<string,Receipt[]>, inc
  y+=28;pdf.rect(left,y-8,10,10);pdf.text('Paid',left+16,y);y+=20;
 
  const main=pdf.output('arraybuffer');const merged=await PDFDocument.load(main); const included:string[]=[];
- if(include){for(const ex of filled){for(const receipt of receipts.get(ex.id)||[]){try{const bytes=await receipt.file.arrayBuffer();if(receipt.file.type==='application/pdf'){const src=await PDFDocument.load(bytes);const label=merged.addPage();label.drawText(pdfSafeText(`${date(ex.date)} · ${ex.description||'Expense'} · ${receipt.file.name}`),{x:36,y:label.getHeight()-38,size:9});const pages=await merged.copyPages(src,src.getPageIndices());pages.forEach(p=>merged.addPage(p));included.push(`${ex.description||'Expense'} — ${receipt.file.name}`)}else{const img=await embedReceiptImage(merged,receipt.file);const p=merged.addPage();const {width,height}=p.getSize(), scale=Math.min((width-72)/img.width,(height-100)/img.height);p.drawText(pdfSafeText(`${date(ex.date)} · ${ex.description||'Expense'} · ${receipt.file.name}`),{x:36,y:height-38,size:9});p.drawImage(img,{x:(width-img.width*scale)/2,y:(height-img.height*scale)/2,width:img.width*scale,height:img.height*scale});included.push(`${ex.description||'Expense'} — ${receipt.file.name}`)}}catch(error){throw new Error(`Could not include receipt “${receipt.file.name}”. ${error instanceof Error?error.message:'The file format is not supported.'}`)}}}}
+ if(include){
+  const attachmentTiles:{image?:Awaited<ReturnType<typeof embedReceiptImage>>;pdfPage?:PDFEmbeddedPage;width:number;height:number;label:string}[]=[];
+  for(const ex of filled){for(const receipt of receipts.get(ex.id)||[]){
+   try{
+    const label=`${date(ex.date)} · ${ex.description||'Expense'} · ${receipt.file.name}`;
+    if(receipt.file.type==='application/pdf'){
+     const sourcePages=await merged.embedPdf(new Uint8Array(await receipt.file.arrayBuffer()));
+     sourcePages.forEach((page,index)=>attachmentTiles.push({pdfPage:page,width:page.width,height:page.height,label:`${label}${sourcePages.length>1?` (page ${index+1})`:''}`}));
+    }else{
+     const image=await embedReceiptImage(merged,receipt.file);
+     attachmentTiles.push({image,width:image.width,height:image.height,label});
+    }
+    included.push(`${ex.description||'Expense'} — ${receipt.file.name}`);
+   }catch(error){throw new Error(`Could not include receipt “${receipt.file.name}”. ${error instanceof Error?error.message:'The file format is not supported.'}`)}
+  }}
+  const margin=36,gap=18,cellWidth=(612-margin*2-gap)/2,cellHeight=(720-gap)/2;
+  for(let start=0;start<attachmentTiles.length;start+=4){
+   const page=merged.addPage([612,792]);
+   attachmentTiles.slice(start,start+4).forEach(({image,pdfPage,width:sourceWidth,height:sourceHeight,label},index)=>{
+    const column=index%2,row=Math.floor(index/2),x=margin+column*(cellWidth+gap),bottom=margin+(1-row)*(cellHeight+gap);
+    const fullLabel=pdfSafeText(label),safeLabel=fullLabel.length>62?`${fullLabel.slice(0,59)}...`:fullLabel,scale=Math.min((cellWidth-12)/sourceWidth,(cellHeight-38)/sourceHeight);
+    const width=sourceWidth*scale,height=sourceHeight*scale;
+    page.drawText(safeLabel,{x:x+6,y:bottom+cellHeight-16,size:8,maxWidth:cellWidth-12});
+    const drawOptions={x:x+(cellWidth-width)/2,y:bottom+8+(cellHeight-38-height)/2,width,height};
+    if(image)page.drawImage(image,drawOptions);else if(pdfPage)page.drawPage(pdfPage,drawOptions);
+   });
+  }
+ }
  return {bytes:await merged.save(),included};
 }

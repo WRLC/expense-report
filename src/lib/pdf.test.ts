@@ -45,6 +45,26 @@ describe('report PDF', () => {
     expect(result.included).toContain('Conference registration — receipt.png');
   });
 
+  it('fits up to four receipt images on each appendix page', async () => {
+    const receipts = Array.from({ length: 5 }, (_, index) => imageReceipt(`receipt-${index + 1}.png`, `receipt-${index + 1}`));
+    const result = await makePdf(report, new Map([['expense-1', receipts]]), true);
+    const doc = await PDFDocument.load(result.bytes);
+    expect(doc.getPageCount()).toBe(3);
+    expect(result.included).toHaveLength(5);
+  });
+
+  it('fits PDF receipt pages into the same four per page layout', async () => {
+    const receiptDocument = await PDFDocument.create();
+    receiptDocument.addPage([240, 320]).drawText('Receipt page one');
+    receiptDocument.addPage([240, 320]).drawText('Receipt page two');
+    const pdfBytes = await receiptDocument.save();
+    const receipt: Receipt = { id: 'pdf-receipt', file: { name: 'receipt.pdf', type: 'application/pdf', arrayBuffer: async () => pdfBytes.buffer } as File };
+    const result = await makePdf(report, new Map([['expense-1', [receipt]]]), true);
+    const doc = await PDFDocument.load(result.bytes);
+    expect(doc.getPageCount()).toBe(2);
+    expect(result.included).toContain('Conference registration — receipt.pdf');
+  });
+
   it('includes a screenshot whose filename contains a narrow no-break space', async () => {
     const filename = 'Screenshot 2026-11-06 at 1.15.24\u202fPM.png';
     const result = await makePdf(report, new Map([['expense-1', [imageReceipt(filename)]]]), true);
