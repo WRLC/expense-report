@@ -22,6 +22,7 @@ export default function App() {
   const [notice, setNotice] = useState('');
   const [accountingEmail, setAccountingEmail] = useState(ACCOUNTING_EMAIL);
   const [includeReceipts, setIncludeReceipts] = useState(true);
+  const [pdfDownload, setPdfDownload] = useState<{ url: string; filename: string } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ row: Expense; index: number; receipts: Receipt[] } | null>(null);
   const [preview, setPreview] = useState<Receipt | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -38,6 +39,10 @@ export default function App() {
     }, 400);
     return () => window.clearTimeout(timer);
   }, [store]);
+
+  useEffect(() => () => {
+    if (pdfDownload) URL.revokeObjectURL(pdfDownload.url);
+  }, [pdfDownload]);
 
   const updateCurrentReport = (update: (current: Report) => Report) => {
     setStore(current => ({ ...current, trips: current.trips.map(trip => trip.id === currentTrip.id ? { ...trip, report: update(trip.report) } : trip) }));
@@ -106,17 +111,20 @@ export default function App() {
       const { makePdf } = await import('./lib/pdf');
       const { bytes, included } = await makePdf(report, receipts, includeReceipts, currentTrip.name);
       const blob = new Blob([Uint8Array.from(bytes).buffer as ArrayBuffer], { type: 'application/pdf' });
+      if (pdfDownload) URL.revokeObjectURL(pdfDownload.url);
       const objectUrl = URL.createObjectURL(blob);
+      const filename = `WRLC-Expense-Report-${report.reportNumber}.pdf`;
+      setPdfDownload({ url: objectUrl, filename });
       const anchor = document.createElement('a');
       anchor.href = objectUrl;
-      anchor.download = `WRLC-Expense-Report-${report.reportNumber}.pdf`;
+      anchor.download = filename;
       anchor.style.display = 'none';
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
       const count = [...receipts.values()].flat().length;
-      setNotice(includeReceipts ? `${included.length} receipt file${included.length === 1 ? '' : 's'} included in the PDF.` : count ? 'PDF downloaded. Remember to attach original receipts separately.' : 'PDF downloaded.');
+      const receiptMessage = includeReceipts ? `${included.length} receipt file${included.length === 1 ? '' : 's'} included in the PDF. ` : count ? 'Remember to attach original receipts separately. ' : '';
+      setNotice(`${receiptMessage}Your PDF is ready. If it did not download automatically, use the link below.`);
       return true;
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'PDF generation failed. Please try again.');
@@ -153,7 +161,7 @@ export default function App() {
     composeUrl.searchParams.set('su', subject);
     composeUrl.searchParams.set('body', body);
     gmailTab.location.href = composeUrl.toString();
-    setNotice('PDF downloaded and Gmail draft prepared. Attach the downloaded PDF before sending.');
+    setNotice('Gmail draft prepared. If the PDF did not download automatically, use the PDF link below. Attach the PDF before sending.');
   };
   const saveDraft = () => {
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(store)); setNotice('Trips saved on this device.'); }
@@ -212,7 +220,7 @@ export default function App() {
       <details className="card accordion"><summary className="accordion-summary"><span className="step">03</span><h2>Advances from WRLC</h2></summary><div className="accordion-content"><label className="prior-field">Balance from last report <div className="currency-field"><span>$</span><input inputMode="decimal" placeholder="0.00" value={report.priorBalance} onChange={event=>setReportField('priorBalance',event.target.value)} aria-invalid={!!errors.priorBalance}/></div>{errors.priorBalance&&<small role="alert" className="error">{errors.priorBalance}</small>}</label><div className="advance-label"><span>Description</span><span>Amount</span><span></span></div>{report.advances.map((advance,index)=><div className="advance-row" key={advance.id}><input aria-label={`Advance ${index+1} description`} placeholder="Cash, tickets, or other advance" value={advance.description} onChange={event=>updateAdvance(advance.id,'description',event.target.value)}/><div><div className="currency-field"><span>$</span><input aria-label={`Advance ${index+1} amount`} inputMode="decimal" placeholder="0.00" value={advance.amount} onChange={event=>updateAdvance(advance.id,'amount',event.target.value)} aria-invalid={!!errors[`advance-${advance.id}`]}/></div>{errors[`advance-${advance.id}`]&&<small role="alert" className="error">{errors[`advance-${advance.id}`]}</small>}</div><button className="icon-btn danger" aria-label="Remove advance" onClick={()=>setReportField('advances',report.advances.filter(row=>row.id!==advance.id))}><Trash2/></button></div>)}<button className="btn secondary" onClick={()=>setReportField('advances',[...report.advances,newAdvance()])}><Plus/>Add advance</button></div></details>
       <section className="card"><div className="section-head"><div><span className="step">04</span><h2>Certification</h2></div></div><p className="cert-statement">“I hereby certify that the above expenditures represent legitimate business expenses incurred by me.”</p><label className="checkline"><input type="checkbox" checked={report.certified} onChange={event=>{setReportField('certified',event.target.checked);setReportField('certificationDate',new Date().toLocaleDateString('en-CA'))}}/>I certify that the information entered in this expense report is complete and accurate.</label>{errors.certified&&<small role="alert" className="error">{errors.certified}</small>}<p className="signature-line">Typed name: <strong>{report.employee||'—'}</strong><span>Certification date: {report.certified?report.certificationDate:'—'}</span></p><div className="notes"><strong>Notes</strong><ol><li>List expenses chronologically.</li><li>Attach receipts in the order listed.</li><li>Balance will be carried forward only if advances exceed expenses.</li></ol></div></section>
     </div>
-    <div className="side-column"><FinancialSummary expenses={totals.allExpenses} advances={totals.totalAdvances} balance={totals.balanceDue}/><section className="card submit-card"><p className="eyebrow">READY TO SUBMIT?</p><h2>Prepare this trip</h2><label className="checkline"><input type="checkbox" checked={includeReceipts} onChange={event=>setIncludeReceipts(event.target.checked)}/>Include receipts in PDF</label>{!includeReceipts&&<p className="hint">Remember to attach original receipt files separately.</p>}<button className="btn primary full" onClick={downloadPdf}><Download/>Download Expense Report PDF</button><div className="email-field"><label htmlFor="accounting-email">Accounting email</label><input id="accounting-email" type="email" placeholder="Enter the address provided by WRLC" value={accountingEmail} onChange={event=>setAccountingEmail(event.target.value)}/></div><button className="btn secondary full" onClick={prepareGmailDraft}><Mail/>Download PDF &amp; prepare Gmail draft</button><p className="hint">Gmail opens with a draft addressed to accounting. Attach the downloaded PDF before sending. Your employee email is included in the report.</p><div className="approval-mini"><FileText/><span>Downloads a PDF for this trip only.</span></div></section><button className="btn text-btn" onClick={clearLocalData}><Trash2/>Clear local data</button></div></div>
+    <div className="side-column"><FinancialSummary expenses={totals.allExpenses} advances={totals.totalAdvances} balance={totals.balanceDue}/><section className="card submit-card"><p className="eyebrow">READY TO SUBMIT?</p><h2>Prepare this trip</h2><label className="checkline"><input type="checkbox" checked={includeReceipts} onChange={event=>setIncludeReceipts(event.target.checked)}/>Include receipts in PDF</label>{!includeReceipts&&<p className="hint">Remember to attach original receipt files separately.</p>}<button className="btn primary full" onClick={downloadPdf}><Download/>Download Expense Report PDF</button>{pdfDownload&&<a className="btn secondary full pdf-download-link" href={pdfDownload.url} download={pdfDownload.filename}><Download/>Download PDF now</a>}<div className="email-field"><label htmlFor="accounting-email">Accounting email</label><input id="accounting-email" type="email" placeholder="Enter the address provided by WRLC" value={accountingEmail} onChange={event=>setAccountingEmail(event.target.value)}/></div><button className="btn secondary full" onClick={prepareGmailDraft}><Mail/>Download PDF &amp; prepare Gmail draft</button><p className="hint">Gmail opens with a draft addressed to accounting. Attach the downloaded PDF before sending. Your employee email is included in the report.</p><div className="approval-mini"><FileText/><span>Downloads a PDF for this trip only.</span></div></section><button className="btn text-btn" onClick={clearLocalData}><Trash2/>Clear local data</button></div></div>
     {preview&&previewUrl&&<div className="modal-backdrop" role="presentation" onClick={closePreview}><div className="preview-modal" role="dialog" aria-modal="true" aria-label={`Receipt preview: ${preview.file.name}`} onClick={event=>event.stopPropagation()}><div className="preview-head"><strong>{preview.file.name}</strong><button className="icon-btn" aria-label="Close preview" onClick={closePreview}><X/></button></div><img src={previewUrl} alt={`Receipt ${preview.file.name}`}/></div></div>}
     <footer className="bottom-actions"><span>{store.trips.length} trip{store.trips.length===1?'':'s'} autosaved to this browser.</span>{pendingDelete&&<p role="status" className="status">Expense removed. <button className="link-button" onClick={undoDelete}>Undo</button></p>}</footer>
   </main>;

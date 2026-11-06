@@ -77,7 +77,8 @@ describe('expense report form', () => {
     expect(gmailUrl.searchParams.get('body')).toContain('taylor@example.org');
     expect(open).toHaveBeenCalledOnce();
     expect(create).toHaveBeenCalledOnce();
-    expect(screen.getAllByText(/Attach the downloaded PDF before sending/)).toHaveLength(2);
+    expect(screen.getByRole('status')).toHaveTextContent(/Gmail draft prepared.*use the PDF link below/i);
+    expect(screen.getByRole('link', { name: 'Download PDF now' })).toBeInTheDocument();
   });
 
   it('generates and downloads a report PDF after validation', async () => {
@@ -96,5 +97,8 @@ describe('expense report form', () => {
     await waitFor(() => expect(screen.getByText(/receipt files included in the PDF/)).toBeInTheDocument());
     expect(create).toHaveBeenCalledOnce();
     expect(click).toHaveBeenCalledOnce();
+    const fallbackDownload = screen.getByRole('link', { name: 'Download PDF now' });
+    expect(fallbackDownload).toHaveAttribute('href', 'blob:test');
+    expect(fallbackDownload).toHaveAttribute('download', expect.stringMatching(/WRLC-Expense-Report-.+\.pdf/));
   });
 });
