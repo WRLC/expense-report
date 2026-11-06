@@ -141,21 +141,21 @@ describe('expense report form', () => {
     render(<App />);
     fireEvent.change(screen.getByLabelText('Employee name'), { target: { value: 'Taylor Staff' } });
     fireEvent.change(screen.getByLabelText('Employee email'), { target: { value: 'taylor@example.org' } });
-    fireEvent.change(screen.getByLabelText('Accounting email'), { target: { value: 'accounting@example.org' } });
     const row = document.querySelector('.expense-row')!;
     fireEvent.change(row.querySelector('input[type="date"]')!, { target: { value: '2026-11-04' } });
     fireEvent.change(row.querySelector('input[placeholder="e.g. Train to annual meeting"]')!, { target: { value: 'Train to conference' } });
     fireEvent.change(row.querySelector('select')!, { target: { value: 'Travel' } });
     fireEvent.change(row.querySelector('input[inputmode="decimal"]')!, { target: { value: '19.50' } });
     fireEvent.click(screen.getByLabelText('I certify that the information entered in this expense report is complete and accurate.'));
-    fireEvent.click(screen.getByRole('button', { name: 'Download PDF & prepare Gmail draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Prepare Gmail draft' }));
     await waitFor(() => expect(gmailTab.location.href).toContain('https://mail.google.com/mail/'));
     const gmailUrl = new URL(gmailTab.location.href);
-    expect(gmailUrl.searchParams.get('to')).toBe('accounting@example.org');
+    expect(gmailUrl.searchParams.get('to')).toBeNull();
+    expect(gmailUrl.searchParams.get('su')).toContain('WRLC Expense Report');
     expect(gmailUrl.searchParams.get('body')).toContain('taylor@example.org');
     expect(open).toHaveBeenCalledOnce();
     expect(create).toHaveBeenCalledOnce();
-    expect(screen.getByRole('status')).toHaveTextContent(/Gmail draft prepared.*use the PDF link below/i);
+    expect(screen.getByRole('status')).toHaveTextContent(/Gmail draft prepared.*Add the recipient/i);
     expect(screen.getByRole('link', { name: 'Download PDF now' })).toBeInTheDocument();
   });
 
