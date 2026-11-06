@@ -22,8 +22,10 @@ export function ExpenseRow({ expense: x, index, errors, receipts, onUpdate, onAt
     <label className="mobile-label">Expense type<select value={x.type} aria-invalid={!!errors[`type-${x.id}`]} aria-describedby={errors[`type-${x.id}`] ? `error-type-${x.id}` : undefined} onChange={e => onUpdate(x.id, 'type', e.target.value)}><option value="">Choose type</option>{EXPENSE_TYPES.map(t => <option key={t}>{t}</option>)}</select>{errors[`type-${x.id}`] && <small id={`error-type-${x.id}`} role="alert" className="error">{errors[`type-${x.id}`]}</small>}</label>
     <label className="mobile-label">Amount<div className="currency-field"><span>$</span><input inputMode="decimal" placeholder="0.00" value={x.amount} onChange={e => onUpdate(x.id, 'amount', e.target.value)} onBlur={() => { const cents = parseCents(x.amount); if (x.amount && cents !== null) onUpdate(x.id, 'amount', (cents / 100).toFixed(2)); }} aria-invalid={!!errors[`amount-${x.id}`]} aria-describedby={errors[`amount-${x.id}`] ? `error-amount-${x.id}` : undefined}/></div>{errors[`amount-${x.id}`] && <small id={`error-amount-${x.id}`} role="alert" className="error">{errors[`amount-${x.id}`]}</small>}</label>
     <div className="receipt-cell">
+      <div className="receipt-actions">
       <button className="icon-btn" aria-label={`Attach receipt for ${description}`} onClick={() => input.current?.click()}><Paperclip/>{receipts.length || ''}</button>
       <button className="icon-btn camera-btn" aria-label={`Take photo of receipt for ${description}`} onClick={() => cameraInput.current?.click()}><Camera/></button>
+      </div>
       {receipts.map(r => <span className="file-chip" key={r.id} title={r.file.name}>{r.file.type.startsWith('image/') && <button aria-label={`Preview ${r.file.name}`} onClick={() => onPreview(r)}><FileText size={13}/></button>}<span>{r.file.name}</span><button aria-label={`Remove ${r.file.name}`} onClick={() => onRemoveReceipt(r.id)}><X size={13}/></button></span>)}
     </div>
     <input ref={input} hidden type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" multiple onChange={e => { onAttach(x.id, e.target.files); e.currentTarget.value = ''; }}/>

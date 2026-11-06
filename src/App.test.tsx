@@ -14,11 +14,13 @@ describe('expense report form', () => {
   it('keeps trip backup tools on the Settings page', () => {
     render(<App />);
     expect(screen.queryByRole('button', { name: 'Restore trips' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Your report stays on this device')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Restore trips' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Export trips' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Clear trip data' })).toBeInTheDocument();
+    expect(screen.getByText('Your report stays on this device')).toBeInTheDocument();
   });
 
   it('uses saved profile details to fill blank employee fields', async () => {
@@ -54,6 +56,8 @@ describe('expense report form', () => {
     const camera = document.querySelector<HTMLInputElement>('input[capture="environment"]');
     expect(camera).toHaveAttribute('accept', 'image/*');
     expect(screen.getAllByRole('button', { name: /Take photo of receipt/ })).toHaveLength(3);
+    expect(document.querySelectorAll('.receipt-actions')).toHaveLength(3);
+    expect(screen.getByRole('link', { name: 'Staff homepage' }).querySelector('svg')).toBeInTheDocument();
   });
 
   it('restores an attached receipt after the form is mounted again', async () => {
