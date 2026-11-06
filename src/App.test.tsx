@@ -23,6 +23,18 @@ describe('expense report form', () => {
     expect(screen.getByText('Your report stays on this device')).toBeInTheDocument();
   });
 
+  it('saves the selected appearance theme on this device', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
+    expect(screen.getByRole('radio', { name: /Light/ })).toBeChecked();
+    fireEvent.click(screen.getByRole('radio', { name: /Colorful/ }));
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe('colorful'));
+    expect(localStorage.getItem('wrlc-expense-report:theme:v1')).toBe('colorful');
+    fireEvent.click(screen.getByRole('radio', { name: /Dark/ }));
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe('dark'));
+    expect(localStorage.getItem('wrlc-expense-report:theme:v1')).toBe('dark');
+  });
+
   it('syncs employee details between Settings and trip reports', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /Settings/ }));

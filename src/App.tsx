@@ -8,6 +8,7 @@ import { createTrip, importTripStore, loadTripStore } from './lib/trips';
 import { clearReceiptStorage, deleteExpenseReceipts, deleteStoredReceipt, deleteTripReceipts, loadReceipts, saveReceipt } from './lib/receiptStorage';
 import { reportFilename } from './lib/filenames';
 import { loadProfile, saveProfile, type EmployeeProfile } from './lib/profile';
+import { loadTheme, saveTheme, type AppTheme } from './lib/theme';
 import { makeReportId } from './lib/reportId';
 import { FinancialSummary } from './components/FinancialSummary';
 import { PrivacyNotice } from './components/PrivacyNotice';
@@ -42,6 +43,7 @@ export default function App() {
   const [notice, setNotice] = useState('');
   const [profile, setProfile] = useState<EmployeeProfile>(loadProfile);
   const [profileDraft, setProfileDraft] = useState<EmployeeProfile>(loadProfile);
+  const [theme, setTheme] = useState<AppTheme>(loadTheme);
   const [page, setPage] = useState<'settings' | 'report'>(() => window.location.hash === '#settings' ? 'settings' : 'report');
   const [includeReceipts, setIncludeReceipts] = useState(true);
   const [pdfDownload, setPdfDownload] = useState<{ url: string; filename: string } | null>(null);
@@ -59,6 +61,11 @@ export default function App() {
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#101827' : theme === 'colorful' ? '#263fa8' : '#183e68');
+  }, [theme]);
 
   const navigate = (nextPage: 'settings' | 'report') => {
     const hash = nextPage === 'settings' ? '#settings' : '#report';
@@ -140,6 +147,11 @@ export default function App() {
       reportNumber: makeReportId(trip.report.submittedDate, profileDraft.name),
     } })) }));
     setNotice('Employee information saved and synced to all trips.');
+  };
+  const updateTheme = (nextTheme: AppTheme) => {
+    setTheme(nextTheme);
+    try { saveTheme(nextTheme); setNotice(`${nextTheme[0].toUpperCase()}${nextTheme.slice(1)} theme saved on this device.`); }
+    catch { setNotice('Theme changed for this session, but could not be saved on this device.'); }
   };
   const updateExpense = (expenseId: string, key: keyof Expense, value: string) => updateCurrentReport(current => ({ ...current, expenses: current.expenses.map(row => row.id === expenseId ? { ...row, [key]: value } : row) }));
   const updateAdvance = (advanceId: string, key: keyof Advance, value: string) => updateCurrentReport(current => ({ ...current, advances: current.advances.map(row => row.id === advanceId ? { ...row, [key]: value } : row) }));
@@ -357,8 +369,9 @@ export default function App() {
       <PrivacyNotice/>
       <div className="settings-layout">
         <section className="card settings-card"><div className="section-head"><div><span className="step">01</span><h2>Employee information</h2></div></div><p className="settings-copy">Save your name and email here to sync them to every trip. Changes made in an expense report also update these saved details.</p><div className="settings-fields"><label>Your name<input autoComplete="name" value={profileDraft.name} onChange={event => updateSavedProfile('name', event.target.value)}/></label><label>Your email<input type="email" autoComplete="email" value={profileDraft.email} onChange={event => updateSavedProfile('email', event.target.value)}/></label></div><div className="settings-profile-actions"><button className="btn primary" onClick={saveSettingsProfile}>Save and sync employee information</button>{(profileDraft.name !== profile.name || profileDraft.email !== profile.email) && <span role="status">Unsaved changes</span>}</div></section>
-        <section className="card settings-card"><div className="section-head"><div><span className="step">02</span><h2>Trip data</h2></div></div><p className="settings-copy">Trips autosave in this browser. Export a copy to move your trip forms to another device. Receipt files stay with the browser and are not included in the export.</p><div className="settings-actions"><button className="btn secondary" onClick={restoreDraft}><RotateCcw/>Restore trips</button><button className="btn secondary" onClick={saveDraft}>Save trips</button><button className="btn secondary" onClick={exportTrips}><FileDown/>Export trips</button><button className="btn secondary" onClick={() => importInput.current?.click()}>Import trips</button><input ref={importInput} hidden type="file" accept="application/json,.json" onChange={event => { importTrips(event.target.files?.[0]); event.currentTarget.value = ''; }}/><button className="btn text-btn" onClick={clearLocalData}><Trash2/>Clear trip data</button></div></section>
-        <section className="card settings-card"><div className="section-head"><div><span className="step">03</span><h2>Install this app</h2></div></div><p className="settings-copy">Install WRLC Expense Report from your browser’s menu to add it to your home screen or desktop. The app shell is cached for offline use; trip details and receipts remain saved on this device.</p></section>
+        <section className="card settings-card"><div className="section-head"><div><span className="step">02</span><h2>Appearance</h2></div></div><p className="settings-copy">Choose how WRLC Expense Report looks on this device.</p><fieldset className="theme-picker"><legend>Theme</legend><div className="theme-options">{([{value:'light',label:'Light',description:'Current look'},{value:'colorful',label:'Colorful',description:'Cobalt + orange'},{value:'dark',label:'Dark',description:'Low light'}] as const).map(option=><label key={option.value} className={`theme-option theme-option-${option.value}${theme===option.value?' selected':''}`}><input type="radio" name="app-theme" value={option.value} checked={theme===option.value} onChange={()=>updateTheme(option.value)}/><span className={`theme-preview theme-preview-${option.value}`} aria-hidden="true"><i/><i/><i/></span><span className="theme-option-copy"><strong>{option.label}</strong><small>{option.description}</small></span></label>)}</div></fieldset></section>
+        <section className="card settings-card"><div className="section-head"><div><span className="step">03</span><h2>Trip data</h2></div></div><p className="settings-copy">Trips autosave in this browser. Export a copy to move your trip forms to another device. Receipt files stay with the browser and are not included in the export.</p><div className="settings-actions"><button className="btn secondary" onClick={restoreDraft}><RotateCcw/>Restore trips</button><button className="btn secondary" onClick={saveDraft}>Save trips</button><button className="btn secondary" onClick={exportTrips}><FileDown/>Export trips</button><button className="btn secondary" onClick={() => importInput.current?.click()}>Import trips</button><input ref={importInput} hidden type="file" accept="application/json,.json" onChange={event => { importTrips(event.target.files?.[0]); event.currentTarget.value = ''; }}/><button className="btn text-btn" onClick={clearLocalData}><Trash2/>Clear trip data</button></div></section>
+        <section className="card settings-card"><div className="section-head"><div><span className="step">04</span><h2>Install this app</h2></div></div><p className="settings-copy">Install WRLC Expense Report from your browser’s menu to add it to your home screen or desktop. The app shell is cached for offline use; trip details and receipts remain saved on this device.</p></section>
       </div>
       <footer className="bottom-actions"><span>{store.trips.length} trip{store.trips.length === 1 ? '' : 's'} autosaved to this browser.</span></footer>
     </> : <>
