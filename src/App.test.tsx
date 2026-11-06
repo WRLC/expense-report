@@ -77,7 +77,7 @@ describe('expense report form', () => {
     expect(gmailUrl.searchParams.get('body')).toContain('taylor@example.org');
     expect(open).toHaveBeenCalledOnce();
     expect(create).toHaveBeenCalledOnce();
-    expect(screen.getByText(/Attach the downloaded PDF before sending/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Attach the downloaded PDF before sending/)).toHaveLength(2);
   });
 
   it('generates and downloads a report PDF after validation', async () => {
