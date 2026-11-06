@@ -5,6 +5,8 @@ import type { Advance, Expense, Receipt, Report, TripStore } from './types/expen
 import { getTotals } from './lib/calculations';
 import { validateReport } from './lib/validation';
 import { createTrip, importTripStore, loadTripStore } from './lib/trips';
+import { clearReceiptStorage, deleteExpenseReceipts, deleteStoredReceipt, deleteTripReceipts, loadReceipts, saveReceipt } from './lib/receiptStorage';
+import { reportFilename } from './lib/filenames';
 import { FinancialSummary } from './components/FinancialSummary';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { ExpenseRow } from './components/ExpenseRow';
@@ -41,6 +43,26 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [store]);
 
+  useEffect(() => {
+    let active = true;
+    void loadReceipts().then(saved => {
+      if (!active) return;
+      setReceiptsByTrip(current => {
+        const merged = new Map(saved);
+        for (const [tripId, expenses] of current) {
+          const target = new Map(merged.get(tripId) ?? []);
+          for (const [expenseId, receipts] of expenses) {
+            const existing = target.get(expenseId) ?? [];
+            target.set(expenseId, [...existing, ...receipts.filter(receipt => !existing.some(item => item.id === receipt.id))]);
+          }
+          merged.set(tripId, target);
+        }
+        return merged;
+      });
+    }).catch(() => { if (active) setNotice('Saved receipts could not be loaded from this browser.'); });
+    return () => { active = false; };
+  }, []);
+
   useEffect(() => () => {
     if (pdfDownload) URL.revokeObjectURL(pdfDownload.url);
   }, [pdfDownload]);
@@ -61,12 +83,21 @@ export default function App() {
     if (!files) return;
     const accepted: Receipt[] = [];
     for (const file of Array.from(files)) {
-      if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) { setNotice(`${file.name} is not a PDF, JPG, or PNG.`); continue; }
+      if (file.type !== 'application/pdf' && !file.type.startsWith('image/')) { setNotice(`${file.name} is not a PDF or image.`); continue; }
       if (file.size > 10 * 1024 * 1024) { setNotice(`${file.name} is over the 10 MB limit.`); continue; }
       accepted.push({ id: crypto.randomUUID(), file });
     }
     changeReceipts(current => new Map(current).set(expenseId, [...(current.get(expenseId) ?? []), ...accepted]));
-    if (accepted.length) setNotice(`${accepted.length} receipt${accepted.length === 1 ? '' : 's'} attached for this session.`);
+    if (accepted.length) {
+      setNotice(`${accepted.length} receipt${accepted.length === 1 ? '' : 's'} attached. Saving on this device…`);
+      void Promise.all(accepted.map(receipt => saveReceipt(currentTrip.id, expenseId, receipt)))
+        .then(() => setNotice(`${accepted.length} receipt${accepted.length === 1 ? '' : 's'} saved on this device.`))
+        .catch(() => setNotice('Receipt attached for now, but could not be saved on this device. Check browser storage space.'));
+    }
+  };
+  const removeReceipt = (expenseId: string, receiptId: string) => {
+    changeReceipts(current => new Map(current).set(expenseId, (current.get(expenseId) ?? []).filter(receipt => receipt.id !== receiptId)));
+    void deleteStoredReceipt(receiptId).catch(() => setNotice('Could not remove the receipt from this device.'));
   };
   const openPreview = (receipt: Receipt) => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -91,6 +122,7 @@ export default function App() {
     const trips = store.trips.filter(trip => trip.id !== currentTrip.id);
     const nextReceipts = new Map(receiptsByTrip); nextReceipts.delete(currentTrip.id); setReceiptsByTrip(nextReceipts);
     setStore({ version: 2, activeTripId: trips[0].id, trips });
+    void deleteTripReceipts(currentTrip.id).catch(() => setNotice('Trip deleted, but its saved receipt files could not be removed.'));
     setErrors({}); setNotice('Trip deleted.');
   };
   const showValidationErrors = (found: Record<string, string>) => {
@@ -114,7 +146,7 @@ export default function App() {
       const blob = new Blob([Uint8Array.from(bytes).buffer as ArrayBuffer], { type: 'application/pdf' });
       if (pdfDownload) URL.revokeObjectURL(pdfDownload.url);
       const objectUrl = URL.createObjectURL(blob);
-      const filename = `WRLC-Expense-Report-${report.reportNumber}.pdf`;
+      const filename = reportFilename(report.employee, currentTrip.name);
       setPdfDownload({ url: objectUrl, filename });
       const anchor = document.createElement('a');
       anchor.href = objectUrl;
@@ -169,7 +201,7 @@ export default function App() {
     catch { setNotice('Could not save trips. Export a JSON copy instead.'); }
   };
   const restoreDraft = () => {
-    try { setStore(loadTripStore()); setReceiptsByTrip(new Map()); setErrors({}); setNotice('Saved trips restored. Reattach any receipts.'); }
+    try { setStore(loadTripStore()); setErrors({}); setNotice('Saved trips and receipts restored.'); }
     catch { setNotice('No saved trips are available on this device.'); }
   };
   const exportTrips = () => {
@@ -182,7 +214,7 @@ export default function App() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      try { setStore(importTripStore(String(reader.result))); setReceiptsByTrip(new Map()); setErrors({}); setNotice('Trips imported. Reattach any receipts.'); }
+      try { setStore(importTripStore(String(reader.result))); setErrors({}); setNotice('Trips imported. Existing locally saved receipts remain available for matching trips.'); }
       catch { setNotice('That trip file is not valid. Your current trips are unchanged.'); }
     };
     reader.readAsText(file);
@@ -191,11 +223,13 @@ export default function App() {
     setPendingDelete({ row, index, receipts: receipts.get(row.id) ?? [] });
     updateCurrentReport(current => ({ ...current, expenses: current.expenses.filter(expense => expense.id !== row.id) }));
     changeReceipts(current => { const next = new Map(current); next.delete(row.id); return next; });
+    void deleteExpenseReceipts(currentTrip.id, row.id).catch(() => setNotice('Expense removed, but its receipt files could not be removed from this device.'));
   };
   const undoDelete = () => {
     if (!pendingDelete) return;
     updateCurrentReport(current => { const expenses = [...current.expenses]; expenses.splice(Math.min(pendingDelete.index, expenses.length), 0, pendingDelete.row); return { ...current, expenses }; });
     changeReceipts(current => new Map(current).set(pendingDelete.row.id, pendingDelete.receipts));
+    void Promise.all(pendingDelete.receipts.map(receipt => saveReceipt(currentTrip.id, pendingDelete.row.id, receipt))).catch(() => setNotice('Expense restored, but its receipts could not be saved again.'));
     setPendingDelete(null);
   };
   const sortRows = () => updateCurrentReport(current => ({ ...current, expenses: [...current.expenses].sort((a, b) => !a.date ? 1 : !b.date ? -1 : a.date.localeCompare(b.date)) }));
@@ -205,6 +239,7 @@ export default function App() {
     const trip = createTrip();
     setStore({ version: 2, activeTripId: trip.id, trips: [trip] });
     setReceiptsByTrip(new Map()); localStorage.removeItem(DRAFT_KEY); setErrors({}); setNotice('Local trip data cleared.');
+    void clearReceiptStorage().catch(() => setNotice('Trips cleared, but saved receipt files could not be removed.'));
   };
 
   return <main className="shell">
@@ -216,8 +251,8 @@ export default function App() {
     <div className="layout"><div className="form-column">
       <section className="card"><div className="section-head"><div><span className="step">01</span><h2>Employee information</h2></div><span className="report-tag">{report.reportNumber}</span></div><div className="field-grid"><label>Employee name<input value={report.employee} onChange={event=>setReportField('employee',event.target.value)} aria-invalid={!!errors.employee} aria-describedby={errors.employee?'error-employee':undefined}/>{errors.employee&&<small id="error-employee" role="alert" className="error">{errors.employee}</small>}</label><label>Employee email<input type="email" autoComplete="email" placeholder="name@example.org" value={report.employeeEmail} onChange={event=>setReportField('employeeEmail',event.target.value)} aria-invalid={!!errors.employeeEmail} aria-describedby={errors.employeeEmail?'error-employee-email':undefined}/>{errors.employeeEmail&&<small id="error-employee-email" role="alert" className="error">{errors.employeeEmail}</small>}</label><label>Date submitted<input type="date" value={report.submittedDate} onChange={event=>setReportField('submittedDate',event.target.value)}/></label></div></section>
       <section className="card"><div className="section-head"><div><span className="step">02</span><h2>Expenses</h2></div><button className="btn small secondary" onClick={sortRows}><ArrowDownWideNarrow/>Sort by date</button></div><div className="table-head"><span>Date</span><span>Expense description / business purpose</span><span>Expense type</span><span>Amount</span><span>Receipts</span><span></span></div>
-        {report.expenses.map((row,index)=><ExpenseRow key={row.id} expense={row} index={index} errors={errors} receipts={receipts.get(row.id)||[]} onUpdate={updateExpense} onAttach={addReceipt} onPreview={openPreview} onRemoveReceipt={receiptId=>changeReceipts(current=>new Map(current).set(row.id,(current.get(row.id)||[]).filter(receipt=>receipt.id!==receiptId)))} onDuplicate={()=>updateCurrentReport(current=>({ ...current, expenses:[...current.expenses.slice(0,index+1),{...row,id:crypto.randomUUID()},...current.expenses.slice(index+1)]}))} onDelete={()=>deleteExpense(row,index)}/>)}
-        <div className="table-footer"><button className="btn secondary" onClick={()=>updateCurrentReport(current=>({...current,expenses:[...current.expenses,newExpense()]}))}><Plus/>Add expense</button><span>List expenses chronologically. Receipt files stay in memory for this session.</span></div>{errors.expenses&&<small role="alert" className="error">{errors.expenses}</small>}</section>
+        {report.expenses.map((row,index)=><ExpenseRow key={row.id} expense={row} index={index} errors={errors} receipts={receipts.get(row.id)||[]} onUpdate={updateExpense} onAttach={addReceipt} onPreview={openPreview} onRemoveReceipt={receiptId=>removeReceipt(row.id, receiptId)} onDuplicate={()=>updateCurrentReport(current=>({ ...current, expenses:[...current.expenses.slice(0,index+1),{...row,id:crypto.randomUUID()},...current.expenses.slice(index+1)]}))} onDelete={()=>deleteExpense(row,index)}/>)}
+        <div className="table-footer"><button className="btn secondary" onClick={()=>updateCurrentReport(current=>({...current,expenses:[...current.expenses,newExpense()]}))}><Plus/>Add expense</button><span>Receipt files are saved on this device and included in the PDF when selected.</span></div>{errors.expenses&&<small role="alert" className="error">{errors.expenses}</small>}</section>
       <details className="card accordion"><summary className="accordion-summary"><span className="step">03</span><h2>Advances from WRLC</h2></summary><div className="accordion-content"><label className="prior-field">Balance from last report <div className="currency-field"><span>$</span><input inputMode="decimal" placeholder="0.00" value={report.priorBalance} onChange={event=>setReportField('priorBalance',event.target.value)} aria-invalid={!!errors.priorBalance}/></div>{errors.priorBalance&&<small role="alert" className="error">{errors.priorBalance}</small>}</label><div className="advance-label"><span>Description</span><span>Amount</span><span></span></div>{report.advances.map((advance,index)=><div className="advance-row" key={advance.id}><input aria-label={`Advance ${index+1} description`} placeholder="Cash, tickets, or other advance" value={advance.description} onChange={event=>updateAdvance(advance.id,'description',event.target.value)}/><div><div className="currency-field"><span>$</span><input aria-label={`Advance ${index+1} amount`} inputMode="decimal" placeholder="0.00" value={advance.amount} onChange={event=>updateAdvance(advance.id,'amount',event.target.value)} aria-invalid={!!errors[`advance-${advance.id}`]}/></div>{errors[`advance-${advance.id}`]&&<small role="alert" className="error">{errors[`advance-${advance.id}`]}</small>}</div><button className="icon-btn danger" aria-label="Remove advance" onClick={()=>setReportField('advances',report.advances.filter(row=>row.id!==advance.id))}><Trash2/></button></div>)}<button className="btn secondary" onClick={()=>setReportField('advances',[...report.advances,newAdvance()])}><Plus/>Add advance</button></div></details>
       <section className="card"><div className="section-head"><div><span className="step">04</span><h2>Certification</h2></div></div><p className="cert-statement">“I hereby certify that the above expenditures represent legitimate business expenses incurred by me.”</p><label className="checkline"><input type="checkbox" checked={report.certified} onChange={event=>{setReportField('certified',event.target.checked);setReportField('certificationDate',new Date().toLocaleDateString('en-CA'))}}/>I certify that the information entered in this expense report is complete and accurate.</label>{errors.certified&&<small role="alert" className="error">{errors.certified}</small>}<p className="signature-line">Typed name: <strong>{report.employee||'—'}</strong><span>Certification date: {report.certified?report.certificationDate:'—'}</span></p><div className="notes"><strong>Notes</strong><ol><li>List expenses chronologically.</li><li>Attach receipts in the order listed.</li><li>Balance will be carried forward only if advances exceed expenses.</li></ol></div></section>
     </div>

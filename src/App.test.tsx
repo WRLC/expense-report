@@ -18,6 +18,24 @@ describe('expense report form', () => {
     expect(document.querySelectorAll('.expense-row')).toHaveLength(4);
   });
 
+  it('offers a rear camera capture input for receipts', () => {
+    render(<App />);
+    const camera = document.querySelector<HTMLInputElement>('input[capture="environment"]');
+    expect(camera).toHaveAttribute('accept', 'image/*');
+    expect(screen.getAllByRole('button', { name: /Take photo of receipt/ })).toHaveLength(3);
+  });
+
+  it('restores an attached receipt after the form is mounted again', async () => {
+    const file = new File(['image bytes'], 'receipt.png', { type: 'image/png' });
+    const first = render(<App />);
+    fireEvent.change(first.container.querySelector<HTMLInputElement>('.expense-row input[type="file"]')!, { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/saved on this device/i));
+    await new Promise(resolve => window.setTimeout(resolve, 450));
+    first.unmount();
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('receipt.png')).toBeInTheDocument());
+  });
+
   it('deletes an expense with an undo action', () => {
     render(<App />);
     fireEvent.click(screen.getAllByRole('button', { name: 'Delete expense' })[0]);
@@ -104,6 +122,6 @@ describe('expense report form', () => {
     expect(click).toHaveBeenCalledOnce();
     const fallbackDownload = screen.getByRole('link', { name: 'Download PDF now' });
     expect(fallbackDownload).toHaveAttribute('href', 'blob:test');
-    expect(fallbackDownload).toHaveAttribute('download', expect.stringMatching(/WRLC-Expense-Report-.+\.pdf/));
+    expect(fallbackDownload).toHaveAttribute('download', 'Taylor-Staff-Trip-Expense-Report.pdf');
   });
 });
