@@ -1,5 +1,27 @@
 import { jsPDF } from 'jspdf'; import { PDFDocument } from 'pdf-lib'; import type { Report, Receipt } from '../types/expenseReport'; import { dollars, getTotals, parseCents } from './calculations';
 const date=(v:string)=>v?new Date(v+'T12:00:00').toLocaleDateString('en-US'):'—';
+async function embedReceiptImage(document:PDFDocument,file:File){
+ const original=new Uint8Array(await file.arrayBuffer());
+ try{return file.type==='image/png'?await document.embedPng(original):await document.embedJpg(original)}
+ catch{
+  let source:ImageBitmap|HTMLImageElement;let bitmap:ImageBitmap|undefined;let imageUrl='';
+  try{
+   if(typeof createImageBitmap==='function'){
+    try{bitmap=await createImageBitmap(file);source=bitmap}
+    catch{imageUrl=URL.createObjectURL(file);const image=new Image();image.src=imageUrl;await image.decode();source=image}
+   }else{
+    imageUrl=URL.createObjectURL(file);const image=new Image();image.src=imageUrl;await image.decode();source=image;
+   }
+   const width='naturalWidth'in source?source.naturalWidth:source.width,height='naturalHeight'in source?source.naturalHeight:source.height;
+   if(!width||!height)throw new Error('Image has no readable dimensions.');
+   const scale=Math.min(1,1800/width,2400/height);const canvas=globalThis.document.createElement('canvas');canvas.width=Math.max(1,Math.round(width*scale));canvas.height=Math.max(1,Math.round(height*scale));
+   const context=canvas.getContext('2d');if(!context)throw new Error('Image conversion is unavailable in this browser.');context.fillStyle='#ffffff';context.fillRect(0,0,canvas.width,canvas.height);context.drawImage(source,0,0,canvas.width,canvas.height);
+   const jpeg=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Image conversion failed.')),'image/jpeg',0.9));
+   return await document.embedJpg(new Uint8Array(await jpeg.arrayBuffer()));
+  }catch(error){throw new Error(`This image could not be decoded or converted: ${error instanceof Error?error.message:'unsupported image format'}`)}
+  finally{bitmap?.close();if(imageUrl)URL.revokeObjectURL(imageUrl)}
+ }
+}
 export async function makePdf(report:Report, receipts:Map<string,Receipt[]>, include:boolean, tripName=''){
  const pdf=new jsPDF({unit:'pt',format:'letter'}), left=44, right=568; let y=48;
  const line=(yy:number)=>{pdf.setDrawColor(210,218,226);pdf.line(left,yy,right,yy)};
@@ -15,6 +37,6 @@ export async function makePdf(report:Report, receipts:Map<string,Receipt[]>, inc
  section('CERTIFICATION');pdf.setFont('helvetica','normal');pdf.setFontSize(9);pdf.text('“I hereby certify that the above expenditures represent legitimate business expenses incurred by me.”',left,y,{maxWidth:right-left});y+=25;pdf.text(`I certify that the information entered in this expense report is complete and accurate.`,left,y,{maxWidth:right-left});y+=16;pdf.text(`Typed name: ${report.employee||'—'}     Certification date: ${date(report.certificationDate)}`,left,y);y+=33;
  section('NOTES');pdf.setFontSize(9);['1. List expenses chronologically.','2. Attach receipts in the order listed.','3. Balance will be carried forward only if advances exceed expenses.'].forEach(t=>{pdf.text(t,left,y);y+=14});y+=16;
  const main=pdf.output('arraybuffer');const merged=await PDFDocument.load(main); const included:string[]=[];
- if(include){for(const ex of filled){for(const receipt of receipts.get(ex.id)||[]){try{const bytes=await receipt.file.arrayBuffer();if(receipt.file.type==='application/pdf'){const src=await PDFDocument.load(bytes);const label=merged.addPage();label.drawText(`${date(ex.date)} · ${ex.description||'Expense'} · ${receipt.file.name}`,{x:36,y:label.getHeight()-38,size:9});const pages=await merged.copyPages(src,src.getPageIndices());pages.forEach(p=>merged.addPage(p));included.push(`${ex.description||'Expense'} — ${receipt.file.name}`)}else{const img=receipt.file.type==='image/png'?await merged.embedPng(bytes):await merged.embedJpg(bytes);const p=merged.addPage();const {width,height}=p.getSize(), scale=Math.min((width-72)/img.width,(height-100)/img.height);p.drawText(`${date(ex.date)} · ${ex.description||'Expense'} · ${receipt.file.name}`,{x:36,y:height-38,size:9});p.drawImage(img,{x:(width-img.width*scale)/2,y:(height-img.height*scale)/2,width:img.width*scale,height:img.height*scale});included.push(`${ex.description||'Expense'} — ${receipt.file.name}`)}}catch{throw new Error(`Could not include receipt “${receipt.file.name}”. Download without receipts and attach the original file separately.`)}}}}
+ if(include){for(const ex of filled){for(const receipt of receipts.get(ex.id)||[]){try{const bytes=await receipt.file.arrayBuffer();if(receipt.file.type==='application/pdf'){const src=await PDFDocument.load(bytes);const label=merged.addPage();label.drawText(`${date(ex.date)} · ${ex.description||'Expense'} · ${receipt.file.name}`,{x:36,y:label.getHeight()-38,size:9});const pages=await merged.copyPages(src,src.getPageIndices());pages.forEach(p=>merged.addPage(p));included.push(`${ex.description||'Expense'} — ${receipt.file.name}`)}else{const img=await embedReceiptImage(merged,receipt.file);const p=merged.addPage();const {width,height}=p.getSize(), scale=Math.min((width-72)/img.width,(height-100)/img.height);p.drawText(`${date(ex.date)} · ${ex.description||'Expense'} · ${receipt.file.name}`,{x:36,y:height-38,size:9});p.drawImage(img,{x:(width-img.width*scale)/2,y:(height-img.height*scale)/2,width:img.width*scale,height:img.height*scale});included.push(`${ex.description||'Expense'} — ${receipt.file.name}`)}}catch(error){throw new Error(`Could not include receipt “${receipt.file.name}”. ${error instanceof Error?error.message:'The file format is not supported.'}`)}}}}
  return {bytes:await merged.save(),included};
 }
