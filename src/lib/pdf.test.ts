@@ -31,6 +31,10 @@ describe('report PDF', () => {
     const result = await makePdf(report, new Map(), false);
     const doc = await PDFDocument.load(result.bytes);
     expect(doc.getPageCount()).toBeGreaterThanOrEqual(1);
+    const pdfSource = new TextDecoder('latin1').decode(result.bytes);
+    expect(pdfSource).toContain('HR PROCESSING');
+    expect(pdfSource).toContain('HR signature:');
+    expect(pdfSource).toContain('Paid');
     expect(result.included).toEqual([]);
   });
 
