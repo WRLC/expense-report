@@ -8,7 +8,7 @@ After GitHub Pages is enabled, open `https://wrlc.github.io/expense-report/`. On
 
 ## Run locally
 
-Requires Node.js 22 or later.
+Requires Node.js 24 or later.
 
 ```sh
 npm ci
