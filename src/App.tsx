@@ -7,7 +7,7 @@ import { validateReport } from './lib/validation';
 import { createTrip, importTripStore, loadTripStore } from './lib/trips';
 import { clearReceiptStorage, deleteExpenseReceipts, deleteStoredReceipt, deleteTripReceipts, loadReceipts, saveReceipt } from './lib/receiptStorage';
 import { reportFilename } from './lib/filenames';
-import { loadProfile, PROFILE_KEY, saveProfile, type EmployeeProfile } from './lib/profile';
+import { loadProfile, saveProfile, type EmployeeProfile } from './lib/profile';
 import { FinancialSummary } from './components/FinancialSummary';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { ExpenseRow } from './components/ExpenseRow';
@@ -22,8 +22,8 @@ type PropsAction<T> = T | ((current: T) => T);
 function fillBlankEmployeeDetails(savedStore: TripStore, profile: EmployeeProfile): TripStore {
   return { ...savedStore, trips: savedStore.trips.map(trip => ({ ...trip, report: {
     ...trip.report,
-    employee: trip.report.employee || profile.name,
-    employeeEmail: trip.report.employeeEmail || profile.email,
+    employee: profile.name || trip.report.employee,
+    employeeEmail: profile.email || trip.report.employeeEmail,
   } })) };
 }
 
@@ -35,7 +35,7 @@ export default function App() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState('');
   const [profile, setProfile] = useState<EmployeeProfile>(loadProfile);
-  const [profileWasSaved, setProfileWasSaved] = useState(() => localStorage.getItem(PROFILE_KEY) !== null);
+  const [profileDraft, setProfileDraft] = useState<EmployeeProfile>(loadProfile);
   const [page, setPage] = useState<'settings' | 'report'>(() => window.location.hash === '#settings' ? 'settings' : 'report');
   const [accountingEmail, setAccountingEmail] = useState(ACCOUNTING_EMAIL);
   const [includeReceipts, setIncludeReceipts] = useState(true);
@@ -98,28 +98,34 @@ export default function App() {
   };
   const setReportField = (key: keyof Report, value: unknown) => updateCurrentReport(current => ({ ...current, [key]: value }));
   const updateEmployeeField = (key: 'employee' | 'employeeEmail', value: string) => {
-    setReportField(key, value);
-    const name = key === 'employee' ? value.trim() : report.employee.trim();
-    const email = key === 'employeeEmail' ? value.trim() : report.employeeEmail.trim();
-    if (!profileWasSaved && name && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      const nextProfile = { name, email };
-      setProfile(nextProfile);
-      setProfileWasSaved(true);
-      try { saveProfile(nextProfile); }
-      catch { setNotice('Could not save your profile in this browser.'); }
-    }
-  };
-  const updateSavedProfile = (key: keyof EmployeeProfile, value: string) => {
-    const next = { ...profile, [key]: value };
+    const next = {
+      name: key === 'employee' ? value.trim() : (report.employee.trim() || profile.name),
+      email: key === 'employeeEmail' ? value.trim() : (report.employeeEmail.trim() || profile.email),
+    };
     setProfile(next);
-    setProfileWasSaved(true);
+    setProfileDraft(next);
     try { saveProfile(next); }
     catch { setNotice('Could not save your profile in this browser.'); }
-    setStore(current => ({ ...current, trips: current.trips.map(trip => trip.id === currentTrip.id ? { ...trip, report: {
+    setStore(current => ({ ...current, trips: current.trips.map(trip => ({ ...trip, report: {
       ...trip.report,
-      employee: key === 'name' && !trip.report.employee ? value : trip.report.employee,
-      employeeEmail: key === 'email' && !trip.report.employeeEmail ? value : trip.report.employeeEmail,
-    } } : trip) }));
+      employee: next.name,
+      employeeEmail: next.email,
+      ...(trip.id === currentTrip.id ? { [key]: value } : {}),
+    } })) }));
+  };
+  const updateSavedProfile = (key: keyof EmployeeProfile, value: string) => {
+    setProfileDraft(current => ({ ...current, [key]: value }));
+  };
+  const saveSettingsProfile = () => {
+    setProfile(profileDraft);
+    try { saveProfile(profileDraft); }
+    catch { setNotice('Could not save your profile in this browser.'); return; }
+    setStore(current => ({ ...current, trips: current.trips.map(trip => ({ ...trip, report: {
+      ...trip.report,
+      employee: profileDraft.name,
+      employeeEmail: profileDraft.email,
+    } })) }));
+    setNotice('Employee information saved and synced to all trips.');
   };
   const updateExpense = (expenseId: string, key: keyof Expense, value: string) => updateCurrentReport(current => ({ ...current, expenses: current.expenses.map(row => row.id === expenseId ? { ...row, [key]: value } : row) }));
   const updateAdvance = (advanceId: string, key: keyof Advance, value: string) => updateCurrentReport(current => ({ ...current, advances: current.advances.map(row => row.id === advanceId ? { ...row, [key]: value } : row) }));
@@ -303,7 +309,7 @@ export default function App() {
       <div className="page-title"><div><p className="eyebrow">PREFERENCES · THIS DEVICE</p><h1>Settings</h1><p className="lede">Manage your saved employee details, trips, and app installation.</p></div></div>
       <PrivacyNotice/>
       <div className="settings-layout">
-        <section className="card settings-card"><div className="section-head"><div><span className="step">01</span><h2>Employee information</h2></div></div><p className="settings-copy">These details are saved on this device and prefilled in new expense reports. If you complete an employee name and email while these settings are blank, they’ll be saved here automatically.</p><div className="settings-fields"><label>Your name<input autoComplete="name" value={profile.name} onChange={event => updateSavedProfile('name', event.target.value)}/></label><label>Your email<input type="email" autoComplete="email" value={profile.email} onChange={event => updateSavedProfile('email', event.target.value)}/></label></div></section>
+        <section className="card settings-card"><div className="section-head"><div><span className="step">01</span><h2>Employee information</h2></div></div><p className="settings-copy">Save your name and email here to sync them to every trip. Changes made in an expense report also update these saved details.</p><div className="settings-fields"><label>Your name<input autoComplete="name" value={profileDraft.name} onChange={event => updateSavedProfile('name', event.target.value)}/></label><label>Your email<input type="email" autoComplete="email" value={profileDraft.email} onChange={event => updateSavedProfile('email', event.target.value)}/></label></div><div className="settings-profile-actions"><button className="btn primary" onClick={saveSettingsProfile}>Save and sync employee information</button>{(profileDraft.name !== profile.name || profileDraft.email !== profile.email) && <span role="status">Unsaved changes</span>}</div></section>
         <section className="card settings-card"><div className="section-head"><div><span className="step">02</span><h2>Trip data</h2></div></div><p className="settings-copy">Trips autosave in this browser. Export a copy to move your trip forms to another device. Receipt files stay with the browser and are not included in the export.</p><div className="settings-actions"><button className="btn secondary" onClick={restoreDraft}><RotateCcw/>Restore trips</button><button className="btn secondary" onClick={saveDraft}>Save trips</button><button className="btn secondary" onClick={exportTrips}><FileDown/>Export trips</button><button className="btn secondary" onClick={() => importInput.current?.click()}>Import trips</button><input ref={importInput} hidden type="file" accept="application/json,.json" onChange={event => { importTrips(event.target.files?.[0]); event.currentTarget.value = ''; }}/><button className="btn text-btn" onClick={clearLocalData}><Trash2/>Clear trip data</button></div></section>
         <section className="card settings-card"><div className="section-head"><div><span className="step">03</span><h2>Install this app</h2></div></div><p className="settings-copy">Install WRLC Expense Report from your browser’s menu to add it to your home screen or desktop. The app shell is cached for offline use; trip details and receipts remain saved on this device.</p></section>
       </div>
