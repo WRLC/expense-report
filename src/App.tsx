@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDownWideNarrow, Download, FileDown, FileText, House, Mail, Plus, RotateCcw, Settings as SettingsIcon, Trash2, X } from 'lucide-react';
+import { ArrowDownWideNarrow, Download, FileDown, FileText, House, Mail, Plus, RotateCcw, Settings as SettingsIcon, Share2, Trash2, X } from 'lucide-react';
 import { ACCOUNTING_EMAIL, DRAFT_KEY } from './config/appConfig';
 import type { Advance, Expense, Receipt, Report, TripStore } from './types/expenseReport';
 import { getTotals } from './lib/calculations';
@@ -212,7 +212,7 @@ export default function App() {
     }
     return true;
   };
-  const downloadPdf = async () => {
+  const createPdfArtifact = async () => {
     if (!showValidationErrors(validateReport(report))) return false;
     try {
       const { makePdf } = await import('./lib/pdf');
@@ -222,20 +222,56 @@ export default function App() {
       const objectUrl = URL.createObjectURL(blob);
       const filename = reportFilename(report.employee, currentTrip.name);
       setPdfDownload({ url: objectUrl, filename });
+      return { blob, filename, objectUrl, includedCount: included.length, receiptCount: [...receipts.values()].flat().length };
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'PDF generation failed. Please try again.');
+      return false;
+    }
+  };
+  const downloadArtifact = (artifact: { objectUrl: string; filename: string }) => {
       const anchor = document.createElement('a');
-      anchor.href = objectUrl;
-      anchor.download = filename;
+      anchor.href = artifact.objectUrl;
+      anchor.download = artifact.filename;
       anchor.style.display = 'none';
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      const count = [...receipts.values()].flat().length;
-      const receiptMessage = includeReceipts ? `${included.length} receipt file${included.length === 1 ? '' : 's'} included in the PDF. ` : count ? 'Remember to attach original receipts separately. ' : '';
+  };
+  const downloadPdf = async () => {
+    const artifact = await createPdfArtifact();
+    if (!artifact) return false;
+    downloadArtifact(artifact);
+    const receiptMessage = includeReceipts ? `${artifact.includedCount} receipt file${artifact.includedCount === 1 ? '' : 's'} included in the PDF. ` : artifact.receiptCount ? 'Remember to attach original receipts separately. ' : '';
       setNotice(`${receiptMessage}Your PDF is ready. If it did not download automatically, use the link below.`);
       return true;
+  };
+  const sharePdf = async () => {
+    const artifact = await createPdfArtifact();
+    if (!artifact) return;
+    const file = new File([artifact.blob], artifact.filename, { type: 'application/pdf' });
+    const subject = `WRLC Expense Report ${report.reportNumber} — ${currentTrip.name || 'Trip'}`;
+    const body = [
+      'Hello,', '',
+      `Please find attached my expense report for ${currentTrip.name || 'this trip'}.`,
+      `Employee: ${report.employee}`,
+      `Employee email: ${report.employeeEmail}`,
+      `Total due: $${(totals.balanceDue / 100).toFixed(2)}`,
+    ].join('\n');
+    if (!navigator.share || !navigator.canShare?.({ files: [file] })) {
+      downloadArtifact(artifact);
+      setNotice('This browser cannot share PDF attachments. The PDF was downloaded; use the Gmail draft option to prepare an addressed message.');
+      return;
+    }
+    try {
+      await navigator.share({ files: [file], title: subject, text: body });
+      setNotice('PDF ready to share. Choose an email app and add the recipient; the subject and message are suggested where supported.');
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'PDF generation failed. Please try again.');
-      return false;
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setNotice('PDF sharing was canceled.');
+        return;
+      }
+      downloadArtifact(artifact);
+      setNotice('The share sheet could not open. The PDF was downloaded; use the Gmail draft option to prepare an addressed message.');
     }
   };
   const prepareGmailDraft = async () => {
@@ -343,7 +379,7 @@ export default function App() {
       <details className="card accordion"><summary className="accordion-summary"><span className="step">03</span><h2>Advances from WRLC</h2></summary><div className="accordion-content"><label className="prior-field">Balance from last report <div className="currency-field"><span>$</span><input inputMode="decimal" placeholder="0.00" value={report.priorBalance} onChange={event=>setReportField('priorBalance',event.target.value)} aria-invalid={!!errors.priorBalance}/></div>{errors.priorBalance&&<small role="alert" className="error">{errors.priorBalance}</small>}</label><div className="advance-label"><span>Description</span><span>Amount</span><span></span></div>{report.advances.map((advance,index)=><div className="advance-row" key={advance.id}><input aria-label={`Advance ${index+1} description`} placeholder="Cash, tickets, or other advance" value={advance.description} onChange={event=>updateAdvance(advance.id,'description',event.target.value)}/><div><div className="currency-field"><span>$</span><input aria-label={`Advance ${index+1} amount`} inputMode="decimal" placeholder="0.00" value={advance.amount} onChange={event=>updateAdvance(advance.id,'amount',event.target.value)} aria-invalid={!!errors[`advance-${advance.id}`]}/></div>{errors[`advance-${advance.id}`]&&<small role="alert" className="error">{errors[`advance-${advance.id}`]}</small>}</div><button className="icon-btn danger" aria-label="Remove advance" onClick={()=>setReportField('advances',report.advances.filter(row=>row.id!==advance.id))}><Trash2/></button></div>)}<button className="btn secondary" onClick={()=>setReportField('advances',[...report.advances,newAdvance()])}><Plus/>Add advance</button></div></details>
       <section className="card"><div className="section-head"><div><span className="step">04</span><h2>Certification</h2></div></div><p className="cert-statement">“I hereby certify that the above expenditures represent legitimate business expenses incurred by me.”</p><label className="checkline"><input type="checkbox" checked={report.certified} onChange={event=>{setReportField('certified',event.target.checked);setReportField('certificationDate',new Date().toLocaleDateString('en-CA'))}}/>I certify that the information entered in this expense report is complete and accurate.</label>{errors.certified&&<small role="alert" className="error">{errors.certified}</small>}<p className="signature-line">Typed name: <strong>{report.employee||'—'}</strong><span>Certification date: {report.certified?report.certificationDate:'—'}</span></p><div className="notes"><strong>Notes</strong><ol><li>List expenses chronologically.</li><li>Attach receipts in the order listed.</li><li>Balance will be carried forward only if advances exceed expenses.</li></ol></div></section>
     </div>
-    <div className="side-column"><FinancialSummary expenses={totals.allExpenses} advances={totals.totalAdvances} balance={totals.balanceDue}/><section className="card submit-card"><p className="eyebrow">READY TO SUBMIT?</p><h2>Prepare this trip</h2><label className="checkline"><input type="checkbox" checked={includeReceipts} onChange={event=>setIncludeReceipts(event.target.checked)}/>Include receipts in PDF</label>{!includeReceipts&&<p className="hint">Remember to attach original receipt files separately.</p>}<button className="btn primary full" onClick={downloadPdf}><Download/>Download Expense Report PDF</button>{pdfDownload&&<a className="btn secondary full pdf-download-link" href={pdfDownload.url} download={pdfDownload.filename}><Download/>Download PDF now</a>}<div className="email-field"><label htmlFor="accounting-email">Accounting email</label><input id="accounting-email" type="email" placeholder="Enter the address provided by WRLC" value={accountingEmail} onChange={event=>setAccountingEmail(event.target.value)}/></div><button className="btn secondary full" onClick={prepareGmailDraft}><Mail/>Download PDF &amp; prepare Gmail draft</button><p className="hint">Gmail opens with a draft addressed to accounting. Attach the downloaded PDF before sending. Your employee email is included in the report.</p><div className="approval-mini"><FileText/><span>Downloads a PDF for this trip only.</span></div></section></div></div>
+    <div className="side-column"><FinancialSummary expenses={totals.allExpenses} advances={totals.totalAdvances} balance={totals.balanceDue}/><section className="card submit-card"><p className="eyebrow">READY TO SUBMIT?</p><h2>Prepare this trip</h2><label className="checkline"><input type="checkbox" checked={includeReceipts} onChange={event=>setIncludeReceipts(event.target.checked)}/>Include receipts in PDF</label>{!includeReceipts&&<p className="hint">Remember to attach original receipt files separately.</p>}<button className="btn primary full" onClick={downloadPdf}><Download/>Download Expense Report PDF</button>{pdfDownload&&<a className="btn secondary full pdf-download-link" href={pdfDownload.url} download={pdfDownload.filename}><Download/>Download PDF now</a>}<div className="email-field"><label htmlFor="accounting-email">Accounting email</label><input id="accounting-email" type="email" placeholder="Enter the address provided by WRLC" value={accountingEmail} onChange={event=>setAccountingEmail(event.target.value)}/></div><button className="btn secondary full" onClick={sharePdf}><Share2/>Share PDF</button><p className="hint">Shares the PDF through your device's share menu. The subject and message are suggested where supported; enter the recipient in your email app.</p><button className="btn secondary full" onClick={prepareGmailDraft}><Mail/>Download PDF &amp; prepare Gmail draft</button><p className="hint">Gmail opens with the accounting address, subject, and message filled in. Attach the downloaded PDF before sending.</p><div className="approval-mini"><FileText/><span>Downloads a PDF for this trip only.</span></div></section></div></div>
     {preview&&previewUrl&&<div className="modal-backdrop" role="presentation" onClick={closePreview}><div className="preview-modal" role="dialog" aria-modal="true" aria-label={`Receipt preview: ${preview.file.name}`} onClick={event=>event.stopPropagation()}><div className="preview-head"><strong>{preview.file.name}</strong><button className="icon-btn" aria-label="Close preview" onClick={closePreview}><X/></button></div><img src={previewUrl} alt={`Receipt ${preview.file.name}`}/></div></div>}
     <footer className="bottom-actions"><span>{store.trips.length} trip{store.trips.length===1?'':'s'} autosaved to this browser.</span>{pendingDelete&&<p role="status" className="status">Expense removed. <button className="link-button" onClick={undoDelete}>Undo</button></p>}</footer>
     </>}

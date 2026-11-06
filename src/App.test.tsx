@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import App from './App';
 
 beforeEach(() => { localStorage.clear(); window.history.replaceState({}, '', window.location.pathname); });
-afterEach(() => { cleanup(); window.history.replaceState({}, '', window.location.pathname); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); window.history.replaceState({}, '', window.location.pathname); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('expense report form', () => {
   it('shows the WRLC logo in the header', () => {
@@ -157,6 +157,29 @@ describe('expense report form', () => {
     expect(create).toHaveBeenCalledOnce();
     expect(screen.getByRole('status')).toHaveTextContent(/Gmail draft prepared.*use the PDF link below/i);
     expect(screen.getByRole('link', { name: 'Download PDF now' })).toBeInTheDocument();
+  });
+
+  it('shares the generated PDF with suggested subject and message', async () => {
+    const canShare = vi.fn().mockReturnValue(true);
+    const share = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, canShare, share });
+    render(<App />);
+    fireEvent.change(screen.getByLabelText('Employee name'), { target: { value: 'Taylor Staff' } });
+    fireEvent.change(screen.getByLabelText('Employee email'), { target: { value: 'taylor@example.org' } });
+    const row = document.querySelector('.expense-row')!;
+    fireEvent.change(row.querySelector('input[type="date"]')!, { target: { value: '2026-11-04' } });
+    fireEvent.change(row.querySelector('input[placeholder="e.g. Train to annual meeting"]')!, { target: { value: 'Train to conference' } });
+    fireEvent.change(row.querySelector('select')!, { target: { value: 'Travel' } });
+    fireEvent.change(row.querySelector('input[inputmode="decimal"]')!, { target: { value: '19.50' } });
+    fireEvent.click(screen.getByLabelText('I certify that the information entered in this expense report is complete and accurate.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Share PDF' }));
+    await waitFor(() => expect(share).toHaveBeenCalledOnce());
+    const shareData = share.mock.calls[0][0];
+    expect(canShare).toHaveBeenCalledOnce();
+    expect(shareData.files[0]).toMatchObject({ name: 'Taylor-Staff-Trip-Expense-Report.pdf', type: 'application/pdf' });
+    expect(shareData.title).toContain('WRLC Expense Report');
+    expect(shareData.text).toContain('taylor@example.org');
+    expect(screen.getByRole('status')).toHaveTextContent(/Choose an email app and add the recipient/i);
   });
 
   it('generates and downloads a report PDF after validation', async () => {
