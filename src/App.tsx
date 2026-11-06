@@ -1,26 +1,187 @@
-import { useEffect,useMemo,useRef,useState } from 'react';import { Plus,Trash2,ArrowDownWideNarrow,FileText,Download,RotateCcw,Mail,FileDown, X } from 'lucide-react';
-import { DRAFT_KEY,ACCOUNTING_EMAIL } from './config/appConfig';import type { Advance,Expense,Report,Receipt } from './types/expenseReport';import {getTotals} from './lib/calculations';import {validateReport} from './lib/validation';import {buildMailto} from './lib/email';import {FinancialSummary} from './components/FinancialSummary';import {PrivacyNotice} from './components/PrivacyNotice';import {ExpenseRow} from './components/ExpenseRow';
-const id=()=>crypto.randomUUID();const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};const newExpense=():Expense=>({id:id(),date:'',description:'',type:'',amount:''});const newAdvance=():Advance=>({id:id(),description:'',amount:''});const blankReport=():Report=>({employee:'',submittedDate:today(),reportNumber:`WR-${new Date().getFullYear()}-${Math.random().toString(36).slice(2,7).toUpperCase()}`,expenses:[newExpense(),newExpense(),newExpense()],priorBalance:'',advances:[newAdvance(),newAdvance(),newAdvance()],certified:false,certificationDate:today()});
-export default function App(){const [report,setReport]=useState<Report>(()=>{try{const raw=localStorage.getItem(DRAFT_KEY);if(raw){const d=JSON.parse(raw);if(d.version===1)return d.report}}catch{}return blankReport()});const [receipts,setReceipts]=useState<Map<string,Receipt[]>>(new Map());const [errors,setErrors]=useState<Record<string,string>>({});const [notice,setNotice]=useState('');const [pendingDelete,setPendingDelete]=useState<{row:Expense,index:number,receipts:Receipt[]}|null>(null);const [preview,setPreview]=useState<Receipt|null>(null);const [previewUrl,setPreviewUrl]=useState('');const clearNextSave=useRef(false);const [email,setEmail]=useState(ACCOUNTING_EMAIL);const [includeReceipts,setIncludeReceipts]=useState(true);const importInput=useRef<HTMLInputElement>(null);
- useEffect(()=>{if(clearNextSave.current){clearNextSave.current=false;return}const t=setTimeout(()=>{try{localStorage.setItem(DRAFT_KEY,JSON.stringify({version:1,report}))}catch{setNotice('Browser storage is full. Export your draft to keep a copy.')}},500);return()=>clearTimeout(t)},[report]);
- const totals=useMemo(()=>getTotals(report.expenses,report.priorBalance,report.advances),[report]);const set=(key:keyof Report,value:unknown)=>setReport(r=>({...r,[key]:value}));const updateExpense=(eid:string,key:keyof Expense,value:string)=>set('expenses',report.expenses.map(x=>x.id===eid?{...x,[key]:value}:x));const updateAdvance=(aid:string,key:keyof Advance,value:string)=>set('advances',report.advances.map(x=>x.id===aid?{...x,[key]:value}:x));const openPreview=(r:Receipt)=>{if(previewUrl)URL.revokeObjectURL(previewUrl);setPreview(r);setPreviewUrl(URL.createObjectURL(r.file))};const closePreview=()=>{if(previewUrl)URL.revokeObjectURL(previewUrl);setPreview(null);setPreviewUrl('')};
- const addReceipt=(eid:string,files:FileList|null)=>{if(!files)return;const accepted:Receipt[]=[];for(const f of Array.from(files)){if(!['application/pdf','image/jpeg','image/png'].includes(f.type)){setNotice(`${f.name} is not a PDF, JPG, or PNG.`);continue}if(f.size>10*1024*1024){setNotice(`${f.name} is over the 10 MB limit.`);continue}accepted.push({id:id(),file:f})}setReceipts(m=>new Map(m).set(eid,[...(m.get(eid)||[]),...accepted]));setNotice(accepted.length?`${accepted.length} receipt${accepted.length>1?'s':''} attached for this session.`:'');};
- const download=async()=>{const e=validateReport(report);setErrors(e);if(Object.keys(e).length){setNotice('Review the highlighted fields before downloading.');return false}try{const {makePdf}=await import('./lib/pdf');const {bytes,included}=await makePdf(report,receipts,includeReceipts);const blob=new Blob([Uint8Array.from(bytes).buffer as ArrayBuffer],{type:'application/pdf'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`WRLC-Expense-Report-${report.reportNumber}.pdf`;a.click();URL.revokeObjectURL(a.href);const n=[...receipts.values()].flat().length;setNotice(includeReceipts?`${included.length} receipt file${included.length===1?'':'s'} included in the PDF.`:n?'PDF downloaded. Remember to attach original receipts separately.':'PDF downloaded.');return true}catch(err){setNotice(err instanceof Error?err.message:'PDF generation failed. Please try again.');return false}};
- const prepareEmail=async()=>{try{const mailto=buildMailto(email,report,totals.balanceDue,includeReceipts);if(!await download())return;window.location.href=mailto}catch{setNotice('Enter a valid accounting email address.')}};
- const exportDraft=()=>{const a=document.createElement('a'),blob=new Blob([JSON.stringify({version:1,report},null,2)],{type:'application/json'});a.href=URL.createObjectURL(blob);a.download=`${report.reportNumber}-draft.json`;a.click();URL.revokeObjectURL(a.href)};
- const importDraft=(f?:File)=>{if(!f)return;const reader=new FileReader();reader.onload=()=>{try{const d=JSON.parse(String(reader.result));if(d.version!==1||!d.report?.expenses||!d.report?.advances)throw 0;setReport(d.report);setReceipts(new Map());setNotice('Draft restored. Reattach any receipts.')}catch{setNotice('That draft file is not valid. Your current entries are unchanged.')}};reader.readAsText(f)};
- const reset=()=>{if(confirm('Start a new report? This replaces the current draft on this device. Export it first if you want a copy.')){setReport(blankReport());setReceipts(new Map());setErrors({});setNotice('New report started.')}};
- const deleteExpense=(row:Expense,index:number)=>{setPendingDelete({row,index,receipts:receipts.get(row.id)||[]});set('expenses',report.expenses.filter(x=>x.id!==row.id));setReceipts(m=>{const n=new Map(m);n.delete(row.id);return n})};const undoDelete=()=>{if(!pendingDelete)return;const rows=[...report.expenses];rows.splice(Math.min(pendingDelete.index,rows.length),0,pendingDelete.row);set('expenses',rows);setReceipts(m=>new Map(m).set(pendingDelete.row.id,pendingDelete.receipts));setPendingDelete(null)};
- const sortRows=()=>set('expenses',[...report.expenses].sort((a,b)=>{if(!a.date)return 1;if(!b.date)return -1;return a.date.localeCompare(b.date)}));
- return <main className="shell"><header className="topbar"><div className="brand-mark">WRLC</div><div><div className="brand-overline">WASHINGTON RESEARCH LIBRARY CONSORTIUM</div><div className="brand-sub">Staff tools</div></div><a className="home-link" href="https://wrlc2k.sharepoint.com/sites/WRLCStaff2/SitePages/Home.aspx">Staff homepage</a></header>
- <div className="page-title"><div><p className="eyebrow">FINANCE · STAFF FORM</p><h1>Expense report</h1><p className="lede">Record your trip expenses, track advances, and prepare your report for accounting.</p></div><div className="title-actions"><button className="btn secondary" onClick={()=>{try{const d=JSON.parse(localStorage.getItem(DRAFT_KEY)||'');if(d.version===1){setReport(d.report);setReceipts(new Map());setNotice('Browser draft restored. Reattach any receipts.')}else setNotice('No saved draft is available on this device.')}catch{setNotice('No saved draft is available on this device.')}}}><RotateCcw/>Restore draft</button><button className="btn secondary" onClick={()=>{try{localStorage.setItem(DRAFT_KEY,JSON.stringify({version:1,report}));setNotice('Draft saved on this device.')}catch{setNotice('Could not save the draft. Export a JSON copy instead.')}}}>Save draft</button><button className="btn secondary" onClick={exportDraft}><FileDown/>Export draft</button><button className="btn secondary" onClick={()=>importInput.current?.click()}>Import draft</button><button className="btn secondary" onClick={reset}>Start new</button><input ref={importInput} hidden type="file" accept="application/json,.json" onChange={e=>{importDraft(e.target.files?.[0]);e.currentTarget.value=''}}/></div></div>
- <PrivacyNotice/>
- <div className="layout"><div className="form-column"><section className="card"><div className="section-head"><div><span className="step">01</span><h2>Employee information</h2></div><span className="report-tag">{report.reportNumber}</span></div><div className="field-grid"><label>Employee name<input value={report.employee} onChange={e=>set('employee',e.target.value)} aria-invalid={!!errors.employee} aria-describedby={errors.employee?'error-employee':undefined}/>{errors.employee&&<small id="error-employee" role="alert" className="error">{errors.employee}</small>}{errors.employee&&<small className="error">{errors.employee}</small>}</label><label>Date submitted<input type="date" value={report.submittedDate} onChange={e=>set('submittedDate',e.target.value)}/></label></div></section>
- <section className="card"><div className="section-head"><div><span className="step">02</span><h2>Expenses</h2></div><button className="btn small secondary" onClick={sortRows}><ArrowDownWideNarrow/>Sort by date</button></div><div className="table-head"><span>Date</span><span>Expense description / business purpose</span><span>Expense type</span><span>Amount</span><span>Receipts</span><span></span></div>
- {report.expenses.map((x,i)=><ExpenseRow key={x.id} expense={x} index={i} errors={errors} receipts={receipts.get(x.id)||[]} onUpdate={updateExpense} onAttach={addReceipt} onPreview={openPreview} onRemoveReceipt={rid=>setReceipts(m=>new Map(m).set(x.id,(m.get(x.id)||[]).filter(q=>q.id!==rid)))} onDuplicate={()=>set('expenses',[...report.expenses.slice(0,i+1),{...x,id:id()},...report.expenses.slice(i+1)])} onDelete={()=>deleteExpense(x,i)}/>)}
- <div className="table-footer"><button className="btn secondary" onClick={()=>set('expenses',[...report.expenses,newExpense()])}><Plus/>Add expense</button><span>List expenses chronologically. Attachments stay on this device for this session.</span></div>{errors.expenses&&<small className="error">{errors.expenses}</small>}</section>
- <section className="card"><div className="section-head"><div><span className="step">03</span><h2>Advances from WRLC</h2></div></div><label className="prior-field">Balance from last report <div className="currency-field"><span>$</span><input inputMode="decimal" placeholder="0.00" value={report.priorBalance} onChange={e=>set('priorBalance',e.target.value)} aria-invalid={!!errors.priorBalance} aria-describedby={errors.priorBalance?'error-prior-balance':undefined}/></div>{errors.priorBalance&&<small id="error-prior-balance" role="alert" className="error">{errors.priorBalance}</small>}</label><div className="advance-label"><span>Description</span><span>Amount</span><span></span></div>{report.advances.map((a,i)=><div className="advance-row" key={a.id}><input aria-label={`Advance ${i+1} description`} placeholder="Cash, tickets, or other advance" value={a.description} onChange={e=>updateAdvance(a.id,'description',e.target.value)}/><div><div className="currency-field"><span>$</span><input aria-label={`Advance ${i+1} amount`} inputMode="decimal" placeholder="0.00" value={a.amount} onChange={e=>updateAdvance(a.id,'amount',e.target.value)} aria-invalid={!!errors[`advance-${a.id}`]} aria-describedby={errors[`advance-${a.id}`]?`error-advance-${a.id}`:undefined}/></div>{errors[`advance-${a.id}`]&&<small id={`error-advance-${a.id}`} role="alert" className="error">{errors[`advance-${a.id}`]}</small>}</div><button className="icon-btn danger" aria-label="Remove advance" onClick={()=>set('advances',report.advances.filter(q=>q.id!==a.id))}><Trash2/></button></div>)}<button className="btn secondary" onClick={()=>set('advances',[...report.advances,newAdvance()])}><Plus/>Add advance</button></section>
- <section className="card"><div className="section-head"><div><span className="step">04</span><h2>Certification</h2></div></div><p className="cert-statement">“I hereby certify that the above expenditures represent legitimate business expenses incurred by me.”</p><label className="checkline"><input type="checkbox" checked={report.certified} onChange={e=>{set('certified',e.target.checked);set('certificationDate',today())}}/>I certify that the information entered in this expense report is complete and accurate.</label>{errors.certified&&<small role="alert" className="error">{errors.certified}</small>}<p className="signature-line">Typed name: <strong>{report.employee||'—'}</strong><span>Certification date: {report.certified?report.certificationDate:'—'}</span></p><div className="notes"><strong>Notes</strong><ol><li>List expenses chronologically.</li><li>Attach receipts in the order listed.</li><li>Balance will be carried forward only if advances exceed expenses.</li></ol></div><div className="approval"><div>APPROVED BY <span></span></div><div>CHECKED BY <span></span></div></div></section></div>
- <div className="side-column"><FinancialSummary expenses={totals.allExpenses} advances={totals.totalAdvances} balance={totals.balanceDue}/><section className="card submit-card"><p className="eyebrow">READY TO SUBMIT?</p><h2>Prepare your report</h2><label className="checkline"><input type="checkbox" checked={includeReceipts} onChange={e=>setIncludeReceipts(e.target.checked)}/>Include receipts in PDF</label>{!includeReceipts&&<p className="hint">Remember to attach original receipt files to your email.</p>}<button className="btn primary full" onClick={download}><Download/>Download Expense Report PDF</button><label className="email-field">Accounting email<input type="email" placeholder="Enter the address provided by WRLC" value={email} onChange={e=>setEmail(e.target.value)}/></label><button className="btn secondary full" onClick={prepareEmail}><Mail/>Download PDF &amp; prepare email</button><p className="hint">Your email app opens with a draft. Attach the downloaded PDF and send it yourself. The app cannot send mail or attach files automatically.</p><div className="approval-mini"><FileText/><span>PDF includes blank approval areas for accounting.</span></div></section><button className="btn text-btn" onClick={()=>{if(!confirm('Clear this report and remove its local browser draft?'))return;clearNextSave.current=true;localStorage.removeItem(DRAFT_KEY);setReport(blankReport());setReceipts(new Map());setErrors({});setNotice('Local data cleared.');}}><Trash2/>Clear local data</button></div></div>
- {preview&&previewUrl&&<div className="modal-backdrop" role="presentation" onClick={closePreview}><div className="preview-modal" role="dialog" aria-modal="true" aria-label={`Receipt preview: ${preview.file.name}`} onClick={e=>e.stopPropagation()}><div className="preview-head"><strong>{preview.file.name}</strong><button className="icon-btn" aria-label="Close preview" onClick={closePreview}><X/></button></div><img src={previewUrl} alt={`Receipt ${preview.file.name}`}/></div></div>}<footer className="bottom-actions"><div>{notice&&<p role="status" className="status">{notice}</p>}{pendingDelete&&<p role="status" className="status">Expense removed. <button className="link-button" onClick={undoDelete}>Undo</button></p>}</div><span>Changes save automatically on this device.</span></footer></main>
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDownWideNarrow, Download, FileDown, FileText, Mail, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { ACCOUNTING_EMAIL, DRAFT_KEY } from './config/appConfig';
+import type { Advance, Expense, Receipt, Report, TripStore } from './types/expenseReport';
+import { getTotals } from './lib/calculations';
+import { validateReport } from './lib/validation';
+import { createTrip, importTripStore, loadTripStore } from './lib/trips';
+import { FinancialSummary } from './components/FinancialSummary';
+import { PrivacyNotice } from './components/PrivacyNotice';
+import { ExpenseRow } from './components/ExpenseRow';
+
+const newExpense = (): Expense => ({ id: crypto.randomUUID(), date: '', description: '', type: '', amount: '' });
+const newAdvance = (): Advance => ({ id: crypto.randomUUID(), description: '', amount: '' });
+
+type ReceiptStore = Map<string, Map<string, Receipt[]>>;
+type PropsAction<T> = T | ((current: T) => T);
+
+export default function App() {
+  const [store, setStore] = useState<TripStore>(loadTripStore);
+  const [receiptsByTrip, setReceiptsByTrip] = useState<ReceiptStore>(new Map());
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [notice, setNotice] = useState('');
+  const [accountingEmail, setAccountingEmail] = useState(ACCOUNTING_EMAIL);
+  const [includeReceipts, setIncludeReceipts] = useState(true);
+  const [pendingDelete, setPendingDelete] = useState<{ row: Expense; index: number; receipts: Receipt[] } | null>(null);
+  const [preview, setPreview] = useState<Receipt | null>(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const importInput = useRef<HTMLInputElement>(null);
+  const currentTrip = store.trips.find(trip => trip.id === store.activeTripId) ?? store.trips[0];
+  const report = currentTrip.report;
+  const receipts = receiptsByTrip.get(currentTrip.id) ?? new Map<string, Receipt[]>();
+  const totals = useMemo(() => getTotals(report.expenses, report.priorBalance, report.advances), [report]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(store)); }
+      catch { setNotice('Browser storage is full. Export your trips to keep a copy.'); }
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [store]);
+
+  const updateCurrentReport = (update: (current: Report) => Report) => {
+    setStore(current => ({ ...current, trips: current.trips.map(trip => trip.id === currentTrip.id ? { ...trip, report: update(trip.report) } : trip) }));
+  };
+  const setReportField = (key: keyof Report, value: unknown) => updateCurrentReport(current => ({ ...current, [key]: value }));
+  const updateExpense = (expenseId: string, key: keyof Expense, value: string) => updateCurrentReport(current => ({ ...current, expenses: current.expenses.map(row => row.id === expenseId ? { ...row, [key]: value } : row) }));
+  const updateAdvance = (advanceId: string, key: keyof Advance, value: string) => updateCurrentReport(current => ({ ...current, advances: current.advances.map(row => row.id === advanceId ? { ...row, [key]: value } : row) }));
+  const changeReceipts = (update: PropsAction<Map<string, Receipt[]>>) => setReceiptsByTrip(current => {
+    const next = new Map(current);
+    const existing = current.get(currentTrip.id) ?? new Map<string, Receipt[]>();
+    next.set(currentTrip.id, typeof update === 'function' ? update(existing) : update);
+    return next;
+  });
+  const addReceipt = (expenseId: string, files: FileList | null) => {
+    if (!files) return;
+    const accepted: Receipt[] = [];
+    for (const file of Array.from(files)) {
+      if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) { setNotice(`${file.name} is not a PDF, JPG, or PNG.`); continue; }
+      if (file.size > 10 * 1024 * 1024) { setNotice(`${file.name} is over the 10 MB limit.`); continue; }
+      accepted.push({ id: crypto.randomUUID(), file });
+    }
+    changeReceipts(current => new Map(current).set(expenseId, [...(current.get(expenseId) ?? []), ...accepted]));
+    if (accepted.length) setNotice(`${accepted.length} receipt${accepted.length === 1 ? '' : 's'} attached for this session.`);
+  };
+  const openPreview = (receipt: Receipt) => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreview(receipt);
+    setPreviewUrl(URL.createObjectURL(receipt.file));
+  };
+  const closePreview = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreview(null);
+    setPreviewUrl('');
+  };
+  const createNewTrip = () => {
+    const trip = createTrip();
+    setStore(current => ({ ...current, activeTripId: trip.id, trips: [...current.trips, trip] }));
+    setErrors({});
+    setNotice('New trip started. Name it and add expenses as you go.');
+  };
+  const renameTrip = (name: string) => setStore(current => ({ ...current, trips: current.trips.map(trip => trip.id === currentTrip.id ? { ...trip, name } : trip) }));
+  const deleteCurrentTrip = () => {
+    if (store.trips.length === 1) { setNotice('Keep at least one trip. Start a new trip before removing this one.'); return; }
+    if (!confirm(`Delete “${currentTrip.name || 'Untitled trip'}” and its saved expenses?`)) return;
+    const trips = store.trips.filter(trip => trip.id !== currentTrip.id);
+    const nextReceipts = new Map(receiptsByTrip); nextReceipts.delete(currentTrip.id); setReceiptsByTrip(nextReceipts);
+    setStore({ version: 2, activeTripId: trips[0].id, trips });
+    setErrors({}); setNotice('Trip deleted.');
+  };
+  const showValidationErrors = (found: Record<string, string>) => {
+    setErrors(found);
+    if (Object.keys(found).length) {
+      setNotice('Review the highlighted fields before downloading.');
+      window.requestAnimationFrame(() => {
+        const invalid = document.querySelector<HTMLElement>('[aria-invalid="true"]');
+        invalid?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        invalid?.focus();
+      });
+      return false;
+    }
+    return true;
+  };
+  const downloadPdf = async () => {
+    if (!showValidationErrors(validateReport(report))) return false;
+    try {
+      const { makePdf } = await import('./lib/pdf');
+      const { bytes, included } = await makePdf(report, receipts, includeReceipts, currentTrip.name);
+      const blob = new Blob([Uint8Array.from(bytes).buffer as ArrayBuffer], { type: 'application/pdf' });
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = `WRLC-Expense-Report-${report.reportNumber}.pdf`;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      const count = [...receipts.values()].flat().length;
+      setNotice(includeReceipts ? `${included.length} receipt file${included.length === 1 ? '' : 's'} included in the PDF.` : count ? 'PDF downloaded. Remember to attach original receipts separately.' : 'PDF downloaded.');
+      return true;
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'PDF generation failed. Please try again.');
+      return false;
+    }
+  };
+  const saveDraft = () => {
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(store)); setNotice('Trips saved on this device.'); }
+    catch { setNotice('Could not save trips. Export a JSON copy instead.'); }
+  };
+  const restoreDraft = () => {
+    try { setStore(loadTripStore()); setReceiptsByTrip(new Map()); setErrors({}); setNotice('Saved trips restored. Reattach any receipts.'); }
+    catch { setNotice('No saved trips are available on this device.'); }
+  };
+  const exportTrips = () => {
+    const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'WRLC-Expense-Trips.json'; anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
+  const importTrips = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try { setStore(importTripStore(String(reader.result))); setReceiptsByTrip(new Map()); setErrors({}); setNotice('Trips imported. Reattach any receipts.'); }
+      catch { setNotice('That trip file is not valid. Your current trips are unchanged.'); }
+    };
+    reader.readAsText(file);
+  };
+  const deleteExpense = (row: Expense, index: number) => {
+    setPendingDelete({ row, index, receipts: receipts.get(row.id) ?? [] });
+    updateCurrentReport(current => ({ ...current, expenses: current.expenses.filter(expense => expense.id !== row.id) }));
+    changeReceipts(current => { const next = new Map(current); next.delete(row.id); return next; });
+  };
+  const undoDelete = () => {
+    if (!pendingDelete) return;
+    updateCurrentReport(current => { const expenses = [...current.expenses]; expenses.splice(Math.min(pendingDelete.index, expenses.length), 0, pendingDelete.row); return { ...current, expenses }; });
+    changeReceipts(current => new Map(current).set(pendingDelete.row.id, pendingDelete.receipts));
+    setPendingDelete(null);
+  };
+  const sortRows = () => updateCurrentReport(current => ({ ...current, expenses: [...current.expenses].sort((a, b) => !a.date ? 1 : !b.date ? -1 : a.date.localeCompare(b.date)) }));
+  const setActiveTrip = (id: string) => { setStore(current => ({ ...current, activeTripId: id })); setErrors({}); setPendingDelete(null); };
+  const clearLocalData = () => {
+    if (!confirm('Clear all trips and remove their local browser data?')) return;
+    const trip = createTrip();
+    setStore({ version: 2, activeTripId: trip.id, trips: [trip] });
+    setReceiptsByTrip(new Map()); localStorage.removeItem(DRAFT_KEY); setErrors({}); setNotice('Local trip data cleared.');
+  };
+
+  return <main className="shell">
+    <header className="topbar"><div className="brand-mark">WRLC</div><div><div className="brand-overline">WASHINGTON RESEARCH LIBRARY CONSORTIUM</div><div className="brand-sub">Staff tools</div></div><a className="home-link" href="https://wrlc2k.sharepoint.com/sites/WRLCStaff2/SitePages/Home.aspx">Staff homepage</a></header>
+    <div className="page-title"><div><p className="eyebrow">FINANCE · STAFF FORM</p><h1>Expense report</h1><p className="lede">Keep expenses organized by trip, then download your report when the trip is complete.</p></div><div className="title-actions"><button className="btn secondary" onClick={restoreDraft}><RotateCcw/>Restore trips</button><button className="btn secondary" onClick={saveDraft}>Save trips</button><button className="btn secondary" onClick={exportTrips}><FileDown/>Export trips</button><button className="btn secondary" onClick={() => importInput.current?.click()}>Import trips</button><input ref={importInput} hidden type="file" accept="application/json,.json" onChange={event => { importTrips(event.target.files?.[0]); event.currentTarget.value = ''; }}/></div></div>
+    <div aria-live="polite" role="status" className={`notice ${notice ? 'notice-visible' : ''}`}>{notice}</div>
+    <PrivacyNotice/>
+    <section className="trip-bar card"><div className="trip-select"><label htmlFor="active-trip">Current trip<select id="active-trip" value={currentTrip.id} onChange={event => setActiveTrip(event.target.value)}>{store.trips.map((trip,index)=><option key={trip.id} value={trip.id}>{trip.name.trim() || `Untitled trip ${index+1}`}</option>)}</select></label><label htmlFor="trip-name">Trip name<input id="trip-name" value={currentTrip.name} onChange={event => renameTrip(event.target.value)} placeholder="e.g. Annual conference · Chicago" maxLength={100}/></label></div><div className="trip-actions"><button className="btn secondary" onClick={createNewTrip}><Plus/>New trip</button><button className="btn text-btn" onClick={deleteCurrentTrip}><Trash2/>Delete trip</button><span>{store.trips.length} trip{store.trips.length===1?'':'s'} saved here</span></div></section>
+    <div className="layout"><div className="form-column">
+      <section className="card"><div className="section-head"><div><span className="step">01</span><h2>Employee information</h2></div><span className="report-tag">{report.reportNumber}</span></div><div className="field-grid"><label>Employee name<input value={report.employee} onChange={event=>setReportField('employee',event.target.value)} aria-invalid={!!errors.employee} aria-describedby={errors.employee?'error-employee':undefined}/>{errors.employee&&<small id="error-employee" role="alert" className="error">{errors.employee}</small>}</label><label>Employee email<input type="email" autoComplete="email" placeholder="name@example.org" value={report.employeeEmail} onChange={event=>setReportField('employeeEmail',event.target.value)} aria-invalid={!!errors.employeeEmail} aria-describedby={errors.employeeEmail?'error-employee-email':undefined}/>{errors.employeeEmail&&<small id="error-employee-email" role="alert" className="error">{errors.employeeEmail}</small>}</label><label>Date submitted<input type="date" value={report.submittedDate} onChange={event=>setReportField('submittedDate',event.target.value)}/></label></div></section>
+      <section className="card"><div className="section-head"><div><span className="step">02</span><h2>Expenses</h2></div><button className="btn small secondary" onClick={sortRows}><ArrowDownWideNarrow/>Sort by date</button></div><div className="table-head"><span>Date</span><span>Expense description / business purpose</span><span>Expense type</span><span>Amount</span><span>Receipts</span><span></span></div>
+        {report.expenses.map((row,index)=><ExpenseRow key={row.id} expense={row} index={index} errors={errors} receipts={receipts.get(row.id)||[]} onUpdate={updateExpense} onAttach={addReceipt} onPreview={openPreview} onRemoveReceipt={receiptId=>changeReceipts(current=>new Map(current).set(row.id,(current.get(row.id)||[]).filter(receipt=>receipt.id!==receiptId)))} onDuplicate={()=>updateCurrentReport(current=>({ ...current, expenses:[...current.expenses.slice(0,index+1),{...row,id:crypto.randomUUID()},...current.expenses.slice(index+1)]}))} onDelete={()=>deleteExpense(row,index)}/>)}
+        <div className="table-footer"><button className="btn secondary" onClick={()=>updateCurrentReport(current=>({...current,expenses:[...current.expenses,newExpense()]}))}><Plus/>Add expense</button><span>List expenses chronologically. Receipt files stay in memory for this session.</span></div>{errors.expenses&&<small role="alert" className="error">{errors.expenses}</small>}</section>
+      <section className="card"><div className="section-head"><div><span className="step">03</span><h2>Advances from WRLC</h2></div></div><label className="prior-field">Balance from last report <div className="currency-field"><span>$</span><input inputMode="decimal" placeholder="0.00" value={report.priorBalance} onChange={event=>setReportField('priorBalance',event.target.value)} aria-invalid={!!errors.priorBalance}/></div>{errors.priorBalance&&<small role="alert" className="error">{errors.priorBalance}</small>}</label><div className="advance-label"><span>Description</span><span>Amount</span><span></span></div>{report.advances.map((advance,index)=><div className="advance-row" key={advance.id}><input aria-label={`Advance ${index+1} description`} placeholder="Cash, tickets, or other advance" value={advance.description} onChange={event=>updateAdvance(advance.id,'description',event.target.value)}/><div><div className="currency-field"><span>$</span><input aria-label={`Advance ${index+1} amount`} inputMode="decimal" placeholder="0.00" value={advance.amount} onChange={event=>updateAdvance(advance.id,'amount',event.target.value)} aria-invalid={!!errors[`advance-${advance.id}`]}/></div>{errors[`advance-${advance.id}`]&&<small role="alert" className="error">{errors[`advance-${advance.id}`]}</small>}</div><button className="icon-btn danger" aria-label="Remove advance" onClick={()=>setReportField('advances',report.advances.filter(row=>row.id!==advance.id))}><Trash2/></button></div>)}<button className="btn secondary" onClick={()=>setReportField('advances',[...report.advances,newAdvance()])}><Plus/>Add advance</button></section>
+      <section className="card"><div className="section-head"><div><span className="step">04</span><h2>Certification</h2></div></div><p className="cert-statement">“I hereby certify that the above expenditures represent legitimate business expenses incurred by me.”</p><label className="checkline"><input type="checkbox" checked={report.certified} onChange={event=>{setReportField('certified',event.target.checked);setReportField('certificationDate',new Date().toLocaleDateString('en-CA'))}}/>I certify that the information entered in this expense report is complete and accurate.</label>{errors.certified&&<small role="alert" className="error">{errors.certified}</small>}<p className="signature-line">Typed name: <strong>{report.employee||'—'}</strong><span>Certification date: {report.certified?report.certificationDate:'—'}</span></p><div className="notes"><strong>Notes</strong><ol><li>List expenses chronologically.</li><li>Attach receipts in the order listed.</li><li>Balance will be carried forward only if advances exceed expenses.</li></ol></div></section>
+    </div>
+    <div className="side-column"><FinancialSummary expenses={totals.allExpenses} advances={totals.totalAdvances} balance={totals.balanceDue}/><section className="card submit-card"><p className="eyebrow">READY TO SUBMIT?</p><h2>Prepare this trip</h2><label className="checkline"><input type="checkbox" checked={includeReceipts} onChange={event=>setIncludeReceipts(event.target.checked)}/>Include receipts in PDF</label>{!includeReceipts&&<p className="hint">Remember to attach original receipt files separately.</p>}<button className="btn primary full" onClick={downloadPdf}><Download/>Download Expense Report PDF</button><div className="email-field"><label htmlFor="accounting-email">Accounting email</label><input id="accounting-email" type="email" placeholder="Enter the address provided by WRLC" value={accountingEmail} onChange={event=>setAccountingEmail(event.target.value)}/></div><button className="btn secondary full" disabled title="Background email delivery needs an approved WRLC mail endpoint or provider configuration."><Mail/>Send report to accounting</button><p className="hint">Background email is awaiting the approved WRLC delivery service. Your employee email appears in the report so accounting can reply.</p><div className="approval-mini"><FileText/><span>Downloads a PDF for this trip only.</span></div></section><button className="btn text-btn" onClick={clearLocalData}><Trash2/>Clear local data</button></div></div>
+    {preview&&previewUrl&&<div className="modal-backdrop" role="presentation" onClick={closePreview}><div className="preview-modal" role="dialog" aria-modal="true" aria-label={`Receipt preview: ${preview.file.name}`} onClick={event=>event.stopPropagation()}><div className="preview-head"><strong>{preview.file.name}</strong><button className="icon-btn" aria-label="Close preview" onClick={closePreview}><X/></button></div><img src={previewUrl} alt={`Receipt ${preview.file.name}`}/></div></div>}
+    <footer className="bottom-actions"><span>{store.trips.length} trip{store.trips.length===1?'':'s'} autosaved to this browser.</span>{pendingDelete&&<p role="status" className="status">Expense removed. <button className="link-button" onClick={undoDelete}>Undo</button></p>}</footer>
+  </main>;
 }

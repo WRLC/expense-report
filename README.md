@@ -17,7 +17,7 @@ npm run dev
 
 ## Accounting email configuration
 
-The organization has not supplied an accounting mailbox, so none is assumed. Once WRLC confirms the correct address, set `ACCOUNTING_EMAIL` in `src/config/appConfig.ts`. Users can also enter the address provided to them in the form. Email preparation opens their own email application with a draft; the application cannot send email or attach files automatically. The downloaded PDF must be attached by the employee.
+The form includes an accounting recipient field and an employee contact email field. The employee email is included in the PDF for replies. Background delivery is not enabled yet: GitHub Pages is static hosting and cannot securely send email by itself. WRLC must provide an approved mail endpoint or provider and deployment credentials before the **Send report to accounting** action can be connected. The PDF download remains available for local submission in the meantime.
 
 ## Build and deploy
 
@@ -34,11 +34,11 @@ For routine updates, push a change to `main`; Actions rebuilds and publishes it.
 
 ## Drafts, receipts, and privacy
 
-Draft form values are autosaved to versioned localStorage on the current browser/device. Use **Export draft** for a portable JSON copy and **Restore draft** to load one. Clearing browser data removes the saved draft. Draft storage is device-specific and is not encrypted, synchronized, or suitable as long-term confidential records storage; do not save sensitive financial information on shared computers. The **Clear local draft** action removes the saved copy.
+Named trips and their report fields are autosaved to versioned localStorage on the current browser/device. Switch trips to resume work, or use **Export trips** for a portable JSON copy and **Restore trips** to load saved trips. Clearing browser data removes the saved draft. Draft storage is device-specific and is not encrypted, synchronized, or suitable as long-term confidential records storage; do not save sensitive financial information on shared computers. The **Clear local data** action removes the saved trip data.
 
-Receipt files are held only in memory for the active editing session. They are not sent to a server or saved in localStorage; reselect them after a reload. Supported receipts are PDF/JPG/JPEG/PNG up to 10 MB each. When included, image receipts and pages from PDF receipts are appended to the generated report. If a file cannot be incorporated, generation reports the error and directs the user to attach that original receipt separately. If receipt inclusion is turned off, attach originals to the email yourself.
+Receipt files are held only in memory for the active editing session. They are not sent to a server or saved in localStorage; reselect them after a reload. Supported receipts are PDF/JPG/JPEG/PNG up to 10 MB each. When included, image receipts and pages from PDF receipts are appended to the generated report. If a file cannot be incorporated, generation reports the error and directs the user to attach that original receipt separately. If receipt inclusion is turned off, download the PDF and attach original receipt files separately when submitting.
 
-The PDF contains the report, certification acknowledgement, notes, blank accounting approval fields, and selected receipt appendix. A typed name is an acknowledgement, not a cryptographically verified signature. GitHub Pages is public hosting and does not authenticate employees. This app does not meet requirements for centrally managed or encrypted records.
+Each PDF contains the selected trip's report, employee contact email, certification acknowledgement, notes, and selected receipt appendix. The old approval signature fields are omitted. A typed name is an acknowledgement, not a cryptographically verified signature. GitHub Pages is public hosting and does not authenticate employees. This app does not meet requirements for centrally managed or encrypted records.
 
 ## Tests
 
