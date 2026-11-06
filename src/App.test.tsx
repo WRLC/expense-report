@@ -6,6 +6,11 @@ beforeEach(() => localStorage.clear());
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('expense report form', () => {
+  it('shows the WRLC logo in the header', () => {
+    render(<App />);
+    expect(screen.getByRole('img', { name: 'WRLC logo' })).toHaveAttribute('src', expect.stringContaining('wrlc-logo-7.png'));
+  });
+
   it('starts with three rows and adds another row', () => {
     render(<App />);
     expect(document.querySelectorAll('.expense-row')).toHaveLength(3);

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PDFDocument, PDFPage } from 'pdf-lib';
-import { makePdf } from './pdf';
+import { hasAdvanceValues, makePdf } from './pdf';
 import type { Receipt, Report } from '../types/expenseReport';
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -17,6 +17,16 @@ const imageReceipt = (name: string, id = 'receipt'): Receipt => ({
 });
 
 describe('report PDF', () => {
+  it('hides the advances section when all advance fields are empty or zero', () => {
+    expect(hasAdvanceValues(report)).toBe(false);
+    expect(hasAdvanceValues({ ...report, priorBalance: '0.00' })).toBe(false);
+  });
+
+  it('shows the advances section when a balance or advance value is present', () => {
+    expect(hasAdvanceValues({ ...report, priorBalance: '25.00' })).toBe(true);
+    expect(hasAdvanceValues({ ...report, advances: [{ id: 'a1', description: 'Train ticket', amount: '' }] })).toBe(true);
+  });
+
   it('creates a readable report PDF', async () => {
     const result = await makePdf(report, new Map(), false);
     const doc = await PDFDocument.load(result.bytes);

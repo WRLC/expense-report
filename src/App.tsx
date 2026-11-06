@@ -8,6 +8,7 @@ import { createTrip, importTripStore, loadTripStore } from './lib/trips';
 import { FinancialSummary } from './components/FinancialSummary';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { ExpenseRow } from './components/ExpenseRow';
+import logoUrl from './assets/wrlc-logo-7.png';
 
 const newExpense = (): Expense => ({ id: crypto.randomUUID(), date: '', description: '', type: '', amount: '' });
 const newAdvance = (): Advance => ({ id: crypto.randomUUID(), description: '', amount: '' });
@@ -207,7 +208,7 @@ export default function App() {
   };
 
   return <main className="shell">
-    <header className="topbar"><div className="brand-mark">WRLC</div><div><div className="brand-overline">WASHINGTON RESEARCH LIBRARY CONSORTIUM</div><div className="brand-sub">Staff tools</div></div><a className="home-link" href="https://wrlc2k.sharepoint.com/sites/WRLCStaff2/SitePages/Home.aspx">Staff homepage</a></header>
+    <header className="topbar"><img className="brand-mark" src={logoUrl} alt="WRLC logo"/><div><div className="brand-overline">WASHINGTON RESEARCH LIBRARY CONSORTIUM</div><div className="brand-sub">Staff tools</div></div><a className="home-link" href="https://wrlc2k.sharepoint.com/sites/WRLCStaff2/SitePages/Home.aspx">Staff homepage</a></header>
     <div className="page-title"><div><p className="eyebrow">FINANCE · STAFF FORM</p><h1>Expense report</h1><p className="lede">Keep expenses organized by trip, then download your report when the trip is complete.</p></div><div className="title-actions"><button className="btn secondary" onClick={restoreDraft}><RotateCcw/>Restore trips</button><button className="btn secondary" onClick={saveDraft}>Save trips</button><button className="btn secondary" onClick={exportTrips}><FileDown/>Export trips</button><button className="btn secondary" onClick={() => importInput.current?.click()}>Import trips</button><input ref={importInput} hidden type="file" accept="application/json,.json" onChange={event => { importTrips(event.target.files?.[0]); event.currentTarget.value = ''; }}/></div></div>
     <div aria-live="polite" role="status" className={`notice ${notice ? 'notice-visible' : ''}`}>{notice}</div>
     <PrivacyNotice/>
