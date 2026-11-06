@@ -2,13 +2,44 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 
-beforeEach(() => localStorage.clear());
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+beforeEach(() => { localStorage.clear(); window.history.replaceState({}, '', window.location.pathname); });
+afterEach(() => { cleanup(); window.history.replaceState({}, '', window.location.pathname); vi.restoreAllMocks(); });
 
 describe('expense report form', () => {
   it('shows the WRLC logo in the header', () => {
     render(<App />);
     expect(screen.getByRole('img', { name: 'WRLC logo' })).toHaveAttribute('src', expect.stringContaining('wrlc-logo-7.png'));
+  });
+
+  it('keeps trip backup tools on the Settings page', () => {
+    render(<App />);
+    expect(screen.queryByRole('button', { name: 'Restore trips' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Restore trips' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Export trips' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear trip data' })).toBeInTheDocument();
+  });
+
+  it('uses saved profile details to fill blank employee fields', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Taylor Staff' } });
+    fireEvent.change(screen.getByLabelText('Your email'), { target: { value: 'taylor@example.org' } });
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('wrlc-expense-report-profile-v1')!).name).toBe('Taylor Staff'));
+    fireEvent.click(screen.getByRole('button', { name: /Expense report/ }));
+    await waitFor(() => expect(screen.getByLabelText('Employee name')).toHaveValue('Taylor Staff'));
+    await waitFor(() => expect(screen.getByLabelText('Employee email')).toHaveValue('taylor@example.org'));
+  });
+
+  it('saves employee details to Settings when the employee section is completed', async () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText('Employee name'), { target: { value: 'Morgan Staff' } });
+    fireEvent.change(screen.getByLabelText('Employee email'), { target: { value: 'morgan@example.org' } });
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('wrlc-expense-report-profile-v1')!).email).toBe('morgan@example.org'));
+    fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
+    expect(screen.getByLabelText('Your name')).toHaveValue('Morgan Staff');
+    expect(screen.getByLabelText('Your email')).toHaveValue('morgan@example.org');
   });
 
   it('starts with three rows and adds another row', () => {
@@ -47,9 +78,13 @@ describe('expense report form', () => {
   it('saves and restores all browser trips', () => {
     render(<App />);
     fireEvent.change(screen.getByLabelText('Employee name'), { target: { value: 'Taylor Staff' } });
+    fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Save trips' }));
+    fireEvent.click(screen.getByRole('button', { name: /Expense report/ }));
     fireEvent.change(screen.getByLabelText('Employee name'), { target: { value: 'Changed Name' } });
+    fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Restore trips' }));
+    fireEvent.click(screen.getByRole('button', { name: /Expense report/ }));
     expect(screen.getByLabelText('Employee name')).toHaveValue('Taylor Staff');
   });
 

@@ -34,12 +34,16 @@ For routine updates, push a change to `main`; Actions rebuilds and publishes it.
 
 ## Drafts, receipts, and privacy
 
-Named trips and their report fields are autosaved to versioned localStorage on the current browser/device. Switch trips to resume work, or use **Export trips** for a portable JSON copy and **Restore trips** to load saved trips. Clearing browser data removes the saved draft. Draft storage is device-specific and is not encrypted, synchronized, or suitable as long-term confidential records storage; do not save sensitive financial information on shared computers. The **Clear local data** action removes the saved trip data.
+Named trips and their report fields are autosaved to versioned localStorage on the current browser/device. Switch trips to resume work, or use **Export trips** for a portable JSON copy and **Restore trips** to load saved trips. Clearing browser data removes the saved draft. Draft storage is device-specific and is not encrypted, synchronized, or suitable as long-term confidential records storage; do not save sensitive financial information on shared computers. **Clear trip data** removes the saved trips and receipts; your employee profile stays saved in Settings.
 
-Receipt files are saved in IndexedDB on the current browser/device and restored with their trip after a reload. They are not sent to a server or included in the JSON trip export. Use the camera button on mobile devices to photograph a receipt, or attach a file from the device. PDF and image receipts up to 10 MB each are supported. When included, images and pages from PDF receipts are appended to the generated report. If a file cannot be incorporated, generation reports the error and directs the user to attach that original receipt separately. If receipt inclusion is turned off, download the PDF and attach original receipt files separately when submitting. **Clear local data** removes saved receipt files too.
+Use **Settings** to manage trip backups and save your employee name and email on this device. Completing the employee name and email in a report saves them to Settings the first time; saved profile details fill blank employee fields in reports. Existing information in a trip is preserved.
+
+Receipt files are saved in IndexedDB on the current browser/device and restored with their trip after a reload. They are not sent to a server or included in the JSON trip export. Use the camera button on mobile devices to photograph a receipt, or attach a file from the device. PDF and image receipts up to 10 MB each are supported. When included, images and pages from PDF receipts are appended to the generated report. If a file cannot be incorporated, generation reports the error and directs the user to attach that original receipt separately. If receipt inclusion is turned off, download the PDF and attach original receipt files separately when submitting. **Clear trip data** removes saved receipt files too.
 
 Each PDF contains the selected trip's report, employee contact email, certification acknowledgement, notes, and selected receipt appendix. The old approval signature fields are omitted. A typed name is an acknowledgement, not a cryptographically verified signature. GitHub Pages is public hosting and does not authenticate employees. This app does not meet requirements for centrally managed or encrypted records.
 
 ## Tests
 
 Vitest tests exercise cent-accurate calculations, validation, and report data rules. CI runs tests before deploying.
+
+The site is installable as a progressive web app. Install it from your browser's install option (or **Add to Home Screen** on iOS); the app interface can load offline after its first online visit. Trip forms are stored on-device and receipt images remain in browser storage.

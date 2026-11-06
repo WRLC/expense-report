@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDownWideNarrow, Download, FileDown, FileText, Mail, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { ArrowDownWideNarrow, Download, FileDown, FileText, Mail, Plus, RotateCcw, Settings as SettingsIcon, Trash2, X } from 'lucide-react';
 import { ACCOUNTING_EMAIL, DRAFT_KEY } from './config/appConfig';
 import type { Advance, Expense, Receipt, Report, TripStore } from './types/expenseReport';
 import { getTotals } from './lib/calculations';
@@ -7,6 +7,7 @@ import { validateReport } from './lib/validation';
 import { createTrip, importTripStore, loadTripStore } from './lib/trips';
 import { clearReceiptStorage, deleteExpenseReceipts, deleteStoredReceipt, deleteTripReceipts, loadReceipts, saveReceipt } from './lib/receiptStorage';
 import { reportFilename } from './lib/filenames';
+import { loadProfile, PROFILE_KEY, saveProfile, type EmployeeProfile } from './lib/profile';
 import { FinancialSummary } from './components/FinancialSummary';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { ExpenseRow } from './components/ExpenseRow';
@@ -18,11 +19,24 @@ const newAdvance = (): Advance => ({ id: crypto.randomUUID(), description: '', a
 type ReceiptStore = Map<string, Map<string, Receipt[]>>;
 type PropsAction<T> = T | ((current: T) => T);
 
+function fillBlankEmployeeDetails(savedStore: TripStore, profile: EmployeeProfile): TripStore {
+  return { ...savedStore, trips: savedStore.trips.map(trip => ({ ...trip, report: {
+    ...trip.report,
+    employee: trip.report.employee || profile.name,
+    employeeEmail: trip.report.employeeEmail || profile.email,
+  } })) };
+}
+
+function loadStoreWithProfile(): TripStore { return fillBlankEmployeeDetails(loadTripStore(), loadProfile()); }
+
 export default function App() {
-  const [store, setStore] = useState<TripStore>(loadTripStore);
+  const [store, setStore] = useState<TripStore>(loadStoreWithProfile);
   const [receiptsByTrip, setReceiptsByTrip] = useState<ReceiptStore>(new Map());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState('');
+  const [profile, setProfile] = useState<EmployeeProfile>(loadProfile);
+  const [profileWasSaved, setProfileWasSaved] = useState(() => localStorage.getItem(PROFILE_KEY) !== null);
+  const [page, setPage] = useState<'settings' | 'report'>(() => window.location.hash === '#settings' ? 'settings' : 'report');
   const [accountingEmail, setAccountingEmail] = useState(ACCOUNTING_EMAIL);
   const [includeReceipts, setIncludeReceipts] = useState(true);
   const [pdfDownload, setPdfDownload] = useState<{ url: string; filename: string } | null>(null);
@@ -34,6 +48,18 @@ export default function App() {
   const report = currentTrip.report;
   const receipts = receiptsByTrip.get(currentTrip.id) ?? new Map<string, Receipt[]>();
   const totals = useMemo(() => getTotals(report.expenses, report.priorBalance, report.advances), [report]);
+
+  useEffect(() => {
+    const onPopState = () => setPage(window.location.hash === '#settings' ? 'settings' : 'report');
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  const navigate = (nextPage: 'settings' | 'report') => {
+    const hash = nextPage === 'settings' ? '#settings' : '#report';
+    if (window.location.hash !== hash) window.history.pushState({}, '', hash);
+    setPage(nextPage);
+  };
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -71,6 +97,30 @@ export default function App() {
     setStore(current => ({ ...current, trips: current.trips.map(trip => trip.id === currentTrip.id ? { ...trip, report: update(trip.report) } : trip) }));
   };
   const setReportField = (key: keyof Report, value: unknown) => updateCurrentReport(current => ({ ...current, [key]: value }));
+  const updateEmployeeField = (key: 'employee' | 'employeeEmail', value: string) => {
+    setReportField(key, value);
+    const name = key === 'employee' ? value.trim() : report.employee.trim();
+    const email = key === 'employeeEmail' ? value.trim() : report.employeeEmail.trim();
+    if (!profileWasSaved && name && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      const nextProfile = { name, email };
+      setProfile(nextProfile);
+      setProfileWasSaved(true);
+      try { saveProfile(nextProfile); }
+      catch { setNotice('Could not save your profile in this browser.'); }
+    }
+  };
+  const updateSavedProfile = (key: keyof EmployeeProfile, value: string) => {
+    const next = { ...profile, [key]: value };
+    setProfile(next);
+    setProfileWasSaved(true);
+    try { saveProfile(next); }
+    catch { setNotice('Could not save your profile in this browser.'); }
+    setStore(current => ({ ...current, trips: current.trips.map(trip => trip.id === currentTrip.id ? { ...trip, report: {
+      ...trip.report,
+      employee: key === 'name' && !trip.report.employee ? value : trip.report.employee,
+      employeeEmail: key === 'email' && !trip.report.employeeEmail ? value : trip.report.employeeEmail,
+    } } : trip) }));
+  };
   const updateExpense = (expenseId: string, key: keyof Expense, value: string) => updateCurrentReport(current => ({ ...current, expenses: current.expenses.map(row => row.id === expenseId ? { ...row, [key]: value } : row) }));
   const updateAdvance = (advanceId: string, key: keyof Advance, value: string) => updateCurrentReport(current => ({ ...current, advances: current.advances.map(row => row.id === advanceId ? { ...row, [key]: value } : row) }));
   const changeReceipts = (update: PropsAction<Map<string, Receipt[]>>) => setReceiptsByTrip(current => {
@@ -111,6 +161,8 @@ export default function App() {
   };
   const createNewTrip = () => {
     const trip = createTrip();
+    trip.report.employee = profile.name;
+    trip.report.employeeEmail = profile.email;
     setStore(current => ({ ...current, activeTripId: trip.id, trips: [...current.trips, trip] }));
     setErrors({});
     setNotice('New trip started. Name it and add expenses as you go.');
@@ -201,7 +253,7 @@ export default function App() {
     catch { setNotice('Could not save trips. Export a JSON copy instead.'); }
   };
   const restoreDraft = () => {
-    try { setStore(loadTripStore()); setErrors({}); setNotice('Saved trips and receipts restored.'); }
+    try { setStore(loadStoreWithProfile()); setErrors({}); setNotice('Saved trips and receipts restored.'); }
     catch { setNotice('No saved trips are available on this device.'); }
   };
   const exportTrips = () => {
@@ -214,7 +266,7 @@ export default function App() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      try { setStore(importTripStore(String(reader.result))); setErrors({}); setNotice('Trips imported. Existing locally saved receipts remain available for matching trips.'); }
+      try { setStore(fillBlankEmployeeDetails(importTripStore(String(reader.result)), profile)); setErrors({}); setNotice('Trips imported. Existing locally saved receipts remain available for matching trips.'); }
       catch { setNotice('That trip file is not valid. Your current trips are unchanged.'); }
     };
     reader.readAsText(file);
@@ -237,27 +289,40 @@ export default function App() {
   const clearLocalData = () => {
     if (!confirm('Clear all trips and remove their local browser data?')) return;
     const trip = createTrip();
+    trip.report.employee = profile.name;
+    trip.report.employeeEmail = profile.email;
     setStore({ version: 2, activeTripId: trip.id, trips: [trip] });
     setReceiptsByTrip(new Map()); localStorage.removeItem(DRAFT_KEY); setErrors({}); setNotice('Local trip data cleared.');
     void clearReceiptStorage().catch(() => setNotice('Trips cleared, but saved receipt files could not be removed.'));
   };
 
   return <main className="shell">
-    <header className="topbar"><img className="brand-mark" src={logoUrl} alt="WRLC logo"/><div><div className="brand-overline">WASHINGTON RESEARCH LIBRARY CONSORTIUM</div><div className="brand-sub">Staff tools</div></div><a className="home-link" href="https://wrlc2k.sharepoint.com/sites/WRLCStaff2/SitePages/Home.aspx">Staff homepage</a></header>
-    <div className="page-title"><div><p className="eyebrow">FINANCE · STAFF FORM</p><h1>Expense report</h1><p className="lede">Keep expenses organized by trip, then download your report when the trip is complete.</p></div><div className="title-actions"><button className="btn secondary" onClick={restoreDraft}><RotateCcw/>Restore trips</button><button className="btn secondary" onClick={saveDraft}>Save trips</button><button className="btn secondary" onClick={exportTrips}><FileDown/>Export trips</button><button className="btn secondary" onClick={() => importInput.current?.click()}>Import trips</button><input ref={importInput} hidden type="file" accept="application/json,.json" onChange={event => { importTrips(event.target.files?.[0]); event.currentTarget.value = ''; }}/></div></div>
+    <header className="topbar"><img className="brand-mark" src={logoUrl} alt="WRLC logo"/><div><div className="brand-overline">WASHINGTON RESEARCH LIBRARY CONSORTIUM</div><div className="brand-sub">Staff tools</div></div><nav className="site-nav" aria-label="Main navigation"><button type="button" className={page === 'report' ? 'active' : ''} onClick={() => navigate('report')} aria-current={page === 'report' ? 'page' : undefined}>Expense report</button><button type="button" className={page === 'settings' ? 'active' : ''} onClick={() => navigate('settings')} aria-current={page === 'settings' ? 'page' : undefined}><SettingsIcon size={15}/>Settings</button></nav><a className="home-link" href="https://wrlc2k.sharepoint.com/sites/WRLCStaff2/SitePages/Home.aspx">Staff homepage</a></header>
+    {page === 'settings' ? <>
+      <div aria-live="polite" role="status" className={`notice ${notice ? 'notice-visible' : ''}`}>{notice}</div>
+      <div className="page-title"><div><p className="eyebrow">PREFERENCES · THIS DEVICE</p><h1>Settings</h1><p className="lede">Manage your saved employee details, trips, and app installation.</p></div></div>
+      <div className="settings-layout">
+        <section className="card settings-card"><div className="section-head"><div><span className="step">01</span><h2>Employee information</h2></div></div><p className="settings-copy">These details are saved on this device and prefilled in new expense reports. If you complete an employee name and email while these settings are blank, they’ll be saved here automatically.</p><div className="settings-fields"><label>Your name<input autoComplete="name" value={profile.name} onChange={event => updateSavedProfile('name', event.target.value)}/></label><label>Your email<input type="email" autoComplete="email" value={profile.email} onChange={event => updateSavedProfile('email', event.target.value)}/></label></div></section>
+        <section className="card settings-card"><div className="section-head"><div><span className="step">02</span><h2>Trip data</h2></div></div><p className="settings-copy">Trips autosave in this browser. Export a copy to move your trip forms to another device. Receipt files stay with the browser and are not included in the export.</p><div className="settings-actions"><button className="btn secondary" onClick={restoreDraft}><RotateCcw/>Restore trips</button><button className="btn secondary" onClick={saveDraft}>Save trips</button><button className="btn secondary" onClick={exportTrips}><FileDown/>Export trips</button><button className="btn secondary" onClick={() => importInput.current?.click()}>Import trips</button><input ref={importInput} hidden type="file" accept="application/json,.json" onChange={event => { importTrips(event.target.files?.[0]); event.currentTarget.value = ''; }}/><button className="btn text-btn" onClick={clearLocalData}><Trash2/>Clear trip data</button></div></section>
+        <section className="card settings-card"><div className="section-head"><div><span className="step">03</span><h2>Install this app</h2></div></div><p className="settings-copy">Install WRLC Expense Report from your browser’s menu to add it to your home screen or desktop. The app shell is cached for offline use; trip details and receipts remain saved on this device.</p></section>
+      </div>
+      <footer className="bottom-actions"><span>{store.trips.length} trip{store.trips.length === 1 ? '' : 's'} autosaved to this browser.</span></footer>
+    </> : <>
+    <div className="page-title"><div><p className="eyebrow">FINANCE · STAFF FORM</p><h1>Expense report</h1><p className="lede">Keep expenses organized by trip, then download your report when the trip is complete.</p></div></div>
     <div aria-live="polite" role="status" className={`notice ${notice ? 'notice-visible' : ''}`}>{notice}</div>
     <PrivacyNotice/>
     <section className="trip-bar card"><div className="trip-select">{store.trips.length > 1 && <label htmlFor="active-trip">Current trip<select id="active-trip" value={currentTrip.id} onChange={event => setActiveTrip(event.target.value)}>{store.trips.map((trip,index)=><option key={trip.id} value={trip.id}>{trip.name.trim() || `Untitled trip ${index+1}`}</option>)}</select></label>}<label htmlFor="trip-name">Trip name<input id="trip-name" value={currentTrip.name} onChange={event => renameTrip(event.target.value)} placeholder="e.g. Annual conference · Chicago" maxLength={100}/></label></div><div className="trip-actions"><button className="btn secondary" onClick={createNewTrip}><Plus/>New trip</button><button className="btn text-btn" onClick={deleteCurrentTrip}><Trash2/>Delete trip</button><span>{store.trips.length} trip{store.trips.length===1?'':'s'} saved here</span></div></section>
     <div className="layout"><div className="form-column">
-      <section className="card"><div className="section-head"><div><span className="step">01</span><h2>Employee information</h2></div><span className="report-tag">{report.reportNumber}</span></div><div className="field-grid"><label>Employee name<input value={report.employee} onChange={event=>setReportField('employee',event.target.value)} aria-invalid={!!errors.employee} aria-describedby={errors.employee?'error-employee':undefined}/>{errors.employee&&<small id="error-employee" role="alert" className="error">{errors.employee}</small>}</label><label>Employee email<input type="email" autoComplete="email" placeholder="name@example.org" value={report.employeeEmail} onChange={event=>setReportField('employeeEmail',event.target.value)} aria-invalid={!!errors.employeeEmail} aria-describedby={errors.employeeEmail?'error-employee-email':undefined}/>{errors.employeeEmail&&<small id="error-employee-email" role="alert" className="error">{errors.employeeEmail}</small>}</label><label>Date submitted<input type="date" value={report.submittedDate} onChange={event=>setReportField('submittedDate',event.target.value)}/></label></div></section>
+      <section className="card"><div className="section-head"><div><span className="step">01</span><h2>Employee information</h2></div><span className="report-tag">{report.reportNumber}</span></div><div className="field-grid"><label>Employee name<input value={report.employee} onChange={event=>updateEmployeeField('employee',event.target.value)} aria-invalid={!!errors.employee} aria-describedby={errors.employee?'error-employee':undefined}/>{errors.employee&&<small id="error-employee" role="alert" className="error">{errors.employee}</small>}</label><label>Employee email<input type="email" autoComplete="email" placeholder="name@example.org" value={report.employeeEmail} onChange={event=>updateEmployeeField('employeeEmail',event.target.value)} aria-invalid={!!errors.employeeEmail} aria-describedby={errors.employeeEmail?'error-employee-email':undefined}/>{errors.employeeEmail&&<small id="error-employee-email" role="alert" className="error">{errors.employeeEmail}</small>}</label><label>Date submitted<input type="date" value={report.submittedDate} onChange={event=>setReportField('submittedDate',event.target.value)}/></label></div></section>
       <section className="card"><div className="section-head"><div><span className="step">02</span><h2>Expenses</h2></div><button className="btn small secondary" onClick={sortRows}><ArrowDownWideNarrow/>Sort by date</button></div><div className="table-head"><span>Date</span><span>Expense description / business purpose</span><span>Expense type</span><span>Amount</span><span>Receipts</span><span></span></div>
         {report.expenses.map((row,index)=><ExpenseRow key={row.id} expense={row} index={index} errors={errors} receipts={receipts.get(row.id)||[]} onUpdate={updateExpense} onAttach={addReceipt} onPreview={openPreview} onRemoveReceipt={receiptId=>removeReceipt(row.id, receiptId)} onDuplicate={()=>updateCurrentReport(current=>({ ...current, expenses:[...current.expenses.slice(0,index+1),{...row,id:crypto.randomUUID()},...current.expenses.slice(index+1)]}))} onDelete={()=>deleteExpense(row,index)}/>)}
         <div className="table-footer"><button className="btn secondary" onClick={()=>updateCurrentReport(current=>({...current,expenses:[...current.expenses,newExpense()]}))}><Plus/>Add expense</button><span>Receipt files are saved on this device and included in the PDF when selected.</span></div>{errors.expenses&&<small role="alert" className="error">{errors.expenses}</small>}</section>
       <details className="card accordion"><summary className="accordion-summary"><span className="step">03</span><h2>Advances from WRLC</h2></summary><div className="accordion-content"><label className="prior-field">Balance from last report <div className="currency-field"><span>$</span><input inputMode="decimal" placeholder="0.00" value={report.priorBalance} onChange={event=>setReportField('priorBalance',event.target.value)} aria-invalid={!!errors.priorBalance}/></div>{errors.priorBalance&&<small role="alert" className="error">{errors.priorBalance}</small>}</label><div className="advance-label"><span>Description</span><span>Amount</span><span></span></div>{report.advances.map((advance,index)=><div className="advance-row" key={advance.id}><input aria-label={`Advance ${index+1} description`} placeholder="Cash, tickets, or other advance" value={advance.description} onChange={event=>updateAdvance(advance.id,'description',event.target.value)}/><div><div className="currency-field"><span>$</span><input aria-label={`Advance ${index+1} amount`} inputMode="decimal" placeholder="0.00" value={advance.amount} onChange={event=>updateAdvance(advance.id,'amount',event.target.value)} aria-invalid={!!errors[`advance-${advance.id}`]}/></div>{errors[`advance-${advance.id}`]&&<small role="alert" className="error">{errors[`advance-${advance.id}`]}</small>}</div><button className="icon-btn danger" aria-label="Remove advance" onClick={()=>setReportField('advances',report.advances.filter(row=>row.id!==advance.id))}><Trash2/></button></div>)}<button className="btn secondary" onClick={()=>setReportField('advances',[...report.advances,newAdvance()])}><Plus/>Add advance</button></div></details>
       <section className="card"><div className="section-head"><div><span className="step">04</span><h2>Certification</h2></div></div><p className="cert-statement">“I hereby certify that the above expenditures represent legitimate business expenses incurred by me.”</p><label className="checkline"><input type="checkbox" checked={report.certified} onChange={event=>{setReportField('certified',event.target.checked);setReportField('certificationDate',new Date().toLocaleDateString('en-CA'))}}/>I certify that the information entered in this expense report is complete and accurate.</label>{errors.certified&&<small role="alert" className="error">{errors.certified}</small>}<p className="signature-line">Typed name: <strong>{report.employee||'—'}</strong><span>Certification date: {report.certified?report.certificationDate:'—'}</span></p><div className="notes"><strong>Notes</strong><ol><li>List expenses chronologically.</li><li>Attach receipts in the order listed.</li><li>Balance will be carried forward only if advances exceed expenses.</li></ol></div></section>
     </div>
-    <div className="side-column"><FinancialSummary expenses={totals.allExpenses} advances={totals.totalAdvances} balance={totals.balanceDue}/><section className="card submit-card"><p className="eyebrow">READY TO SUBMIT?</p><h2>Prepare this trip</h2><label className="checkline"><input type="checkbox" checked={includeReceipts} onChange={event=>setIncludeReceipts(event.target.checked)}/>Include receipts in PDF</label>{!includeReceipts&&<p className="hint">Remember to attach original receipt files separately.</p>}<button className="btn primary full" onClick={downloadPdf}><Download/>Download Expense Report PDF</button>{pdfDownload&&<a className="btn secondary full pdf-download-link" href={pdfDownload.url} download={pdfDownload.filename}><Download/>Download PDF now</a>}<div className="email-field"><label htmlFor="accounting-email">Accounting email</label><input id="accounting-email" type="email" placeholder="Enter the address provided by WRLC" value={accountingEmail} onChange={event=>setAccountingEmail(event.target.value)}/></div><button className="btn secondary full" onClick={prepareGmailDraft}><Mail/>Download PDF &amp; prepare Gmail draft</button><p className="hint">Gmail opens with a draft addressed to accounting. Attach the downloaded PDF before sending. Your employee email is included in the report.</p><div className="approval-mini"><FileText/><span>Downloads a PDF for this trip only.</span></div></section><button className="btn text-btn" onClick={clearLocalData}><Trash2/>Clear local data</button></div></div>
+    <div className="side-column"><FinancialSummary expenses={totals.allExpenses} advances={totals.totalAdvances} balance={totals.balanceDue}/><section className="card submit-card"><p className="eyebrow">READY TO SUBMIT?</p><h2>Prepare this trip</h2><label className="checkline"><input type="checkbox" checked={includeReceipts} onChange={event=>setIncludeReceipts(event.target.checked)}/>Include receipts in PDF</label>{!includeReceipts&&<p className="hint">Remember to attach original receipt files separately.</p>}<button className="btn primary full" onClick={downloadPdf}><Download/>Download Expense Report PDF</button>{pdfDownload&&<a className="btn secondary full pdf-download-link" href={pdfDownload.url} download={pdfDownload.filename}><Download/>Download PDF now</a>}<div className="email-field"><label htmlFor="accounting-email">Accounting email</label><input id="accounting-email" type="email" placeholder="Enter the address provided by WRLC" value={accountingEmail} onChange={event=>setAccountingEmail(event.target.value)}/></div><button className="btn secondary full" onClick={prepareGmailDraft}><Mail/>Download PDF &amp; prepare Gmail draft</button><p className="hint">Gmail opens with a draft addressed to accounting. Attach the downloaded PDF before sending. Your employee email is included in the report.</p><div className="approval-mini"><FileText/><span>Downloads a PDF for this trip only.</span></div></section></div></div>
     {preview&&previewUrl&&<div className="modal-backdrop" role="presentation" onClick={closePreview}><div className="preview-modal" role="dialog" aria-modal="true" aria-label={`Receipt preview: ${preview.file.name}`} onClick={event=>event.stopPropagation()}><div className="preview-head"><strong>{preview.file.name}</strong><button className="icon-btn" aria-label="Close preview" onClick={closePreview}><X/></button></div><img src={previewUrl} alt={`Receipt ${preview.file.name}`}/></div></div>}
     <footer className="bottom-actions"><span>{store.trips.length} trip{store.trips.length===1?'':'s'} autosaved to this browser.</span>{pendingDelete&&<p role="status" className="status">Expense removed. <button className="link-button" onClick={undoDelete}>Undo</button></p>}</footer>
+    </>}
   </main>;
 }
