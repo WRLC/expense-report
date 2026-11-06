@@ -10,7 +10,7 @@ export default defineConfig({
       name: 'WRLC Expense Report',
       short_name: 'WRLC Expenses',
       description: 'Complete and download WRLC expense reports by trip.',
-      theme_color: '#005bbb',
+      theme_color: '#263fa8',
       background_color: '#f4f6f8',
       display: 'standalone',
       start_url: './',
