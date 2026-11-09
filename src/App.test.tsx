@@ -13,13 +13,13 @@ describe('expense report form', () => {
 
   it('keeps trip backup tools on the Settings page', () => {
     render(<App />);
-    expect(screen.queryByRole('button', { name: 'Restore trips' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Restore reports' })).not.toBeInTheDocument();
     expect(screen.queryByText('Your report stays on this device')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Restore trips' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Export trips' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Clear trip data' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Restore reports' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Export reports' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear report data' })).toBeInTheDocument();
     expect(screen.getByText('Your report stays on this device')).toBeInTheDocument();
   });
 
@@ -51,7 +51,7 @@ describe('expense report form', () => {
     expect(screen.getByLabelText('Your name')).toHaveValue('Morgan Staff');
     expect(screen.getByLabelText('Your email')).toHaveValue('taylor@example.org');
     fireEvent.click(screen.getByRole('button', { name: /Expense report/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'New trip' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New report' }));
     expect(screen.getByLabelText('Employee name')).toHaveValue('Morgan Staff');
     expect(screen.getByLabelText('Employee email')).toHaveValue('taylor@example.org');
   });
@@ -110,28 +110,28 @@ describe('expense report form', () => {
 
   it('saves and restores trip data from Settings', () => {
     render(<App />);
-    fireEvent.change(screen.getByLabelText('Trip name'), { target: { value: 'Annual meeting' } });
+    fireEvent.change(screen.getByLabelText('Report name'), { target: { value: 'Annual meeting' } });
     fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save trips' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save reports' }));
     fireEvent.click(screen.getByRole('button', { name: /Expense report/ }));
-    fireEvent.change(screen.getByLabelText('Trip name'), { target: { value: 'Changed trip' } });
+    fireEvent.change(screen.getByLabelText('Report name'), { target: { value: 'Changed report' } });
     fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Restore trips' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Restore reports' }));
     fireEvent.click(screen.getByRole('button', { name: /Expense report/ }));
-    expect(screen.getByLabelText('Trip name')).toHaveValue('Annual meeting');
+    expect(screen.getByLabelText('Report name')).toHaveValue('Annual meeting');
   });
 
   it('keeps named trips separate when switching between them', () => {
     render(<App />);
-    expect(screen.queryByLabelText('Current trip')).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Trip name'), { target: { value: 'Conference' } });
+    expect(screen.queryByLabelText('Current report')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Report name'), { target: { value: 'Conference' } });
     fireEvent.change(screen.getByLabelText('Employee name'), { target: { value: 'Taylor Staff' } });
-    fireEvent.click(screen.getByRole('button', { name: 'New trip' }));
-    const selector = screen.getByLabelText('Current trip') as HTMLSelectElement;
-    fireEvent.change(screen.getByLabelText('Trip name'), { target: { value: 'Site visit' } });
+    fireEvent.click(screen.getByRole('button', { name: 'New report' }));
+    const selector = screen.getByLabelText('Current report') as HTMLSelectElement;
+    fireEvent.change(screen.getByLabelText('Report name'), { target: { value: 'Site visit' } });
     fireEvent.change(screen.getByLabelText('Employee name'), { target: { value: 'Morgan Staff' } });
     fireEvent.change(selector, { target: { value: [...selector.options].find(option => option.text === 'Conference')!.value } });
-    expect(screen.getByLabelText('Trip name')).toHaveValue('Conference');
+    expect(screen.getByLabelText('Report name')).toHaveValue('Conference');
     expect(screen.getByLabelText('Employee name')).toHaveValue('Morgan Staff');
   });
 
@@ -189,7 +189,7 @@ describe('expense report form', () => {
     await waitFor(() => expect(share).toHaveBeenCalledOnce());
     const shareData = share.mock.calls[0][0];
     expect(canShare).toHaveBeenCalledOnce();
-    expect(shareData.files[0]).toMatchObject({ name: 'Taylor-Staff-Trip-Expense-Report.pdf', type: 'application/pdf' });
+    expect(shareData.files[0]).toMatchObject({ name: 'Taylor-Staff-Report-Expense-Report.pdf', type: 'application/pdf' });
     expect(shareData.title).toContain('WRLC Expense Report');
     expect(shareData.text).toContain('taylor@example.org');
     expect(screen.getByRole('status')).toHaveTextContent(/Choose an email app and add the recipient/i);
@@ -213,6 +213,6 @@ describe('expense report form', () => {
     expect(click).toHaveBeenCalledOnce();
     const fallbackDownload = screen.getByRole('link', { name: 'Download PDF now' });
     expect(fallbackDownload).toHaveAttribute('href', 'blob:test');
-    expect(fallbackDownload).toHaveAttribute('download', 'Taylor-Staff-Trip-Expense-Report.pdf');
+    expect(fallbackDownload).toHaveAttribute('download', 'Taylor-Staff-Report-Expense-Report.pdf');
   });
 });

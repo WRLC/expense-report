@@ -5,6 +5,6 @@ function safePart(value: string, fallback: string): string {
   return cleaned || fallback;
 }
 
-export function reportFilename(employee: string, trip: string): string {
-  return `${safePart(employee, 'Employee')}-${safePart(trip, 'Trip')}-Expense-Report.pdf`;
+export function reportFilename(employee: string, reportName: string): string {
+  return `${safePart(employee, 'Employee')}-${safePart(reportName, 'Report')}-Expense-Report.pdf`;
 }

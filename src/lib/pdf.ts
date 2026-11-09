@@ -24,12 +24,12 @@ async function embedReceiptImage(document:PDFDocument,file:File){
   finally{bitmap?.close();if(imageUrl)URL.revokeObjectURL(imageUrl)}
  }
 }
-export async function makePdf(report:Report, receipts:Map<string,Receipt[]>, include:boolean, tripName=''){
+export async function makePdf(report:Report, receipts:Map<string,Receipt[]>, include:boolean, reportName=''){
  const pdf=new jsPDF({unit:'pt',format:'letter'}), left=44, right=568; let y=48;
  const line=(yy:number)=>{pdf.setDrawColor(210,218,226);pdf.setLineWidth(.6);pdf.line(left,yy,right,yy)};
  const section=(title:string)=>{if(y>700){pdf.addPage();y=46}pdf.setFont('helvetica','bold');pdf.setFontSize(11);pdf.setTextColor(24,62,104);pdf.text(title,left,y); y+=16;line(y);y+=18};
  pdf.setFont('helvetica','bold');pdf.setFontSize(21);pdf.setTextColor(30,43,58);pdf.text('WRLC Expense Report',left,y);pdf.setFontSize(9);pdf.setFont('helvetica','normal');pdf.text(`Report ${report.reportNumber}`,right,y,{align:'right'});y+=20;
- pdf.setFontSize(10);pdf.text(`Trip: ${tripName||'Untitled trip'}`,left,y);pdf.text(`Date submitted: ${date(report.submittedDate)}`,right,y,{align:'right'});y+=16;pdf.text(`Employee: ${report.employee||'—'}`,left,y);if(report.employeeEmail)pdf.text(`Employee email: ${report.employeeEmail}`,right,y,{align:'right'});y+=25;
+ pdf.setFontSize(10);pdf.text(`Report name: ${reportName||'Untitled report'}`,left,y);pdf.text(`Date submitted: ${date(report.submittedDate)}`,right,y,{align:'right'});y+=16;pdf.text(`Employee: ${report.employee||'—'}`,left,y);if(report.employeeEmail)pdf.text(`Employee email: ${report.employeeEmail}`,right,y,{align:'right'});y+=25;
  section('EXPENSES');pdf.setFont('helvetica','bold');pdf.setFontSize(8);pdf.text('DATE',left,y);pdf.text('DESCRIPTION / BUSINESS PURPOSE',left+82,y);pdf.text('TYPE',425,y);pdf.text('AMOUNT',right,y,{align:'right'});y+=13;
  const filled=report.expenses.filter(x=>x.date||x.description||x.type||x.amount);
  for(const ex of filled){const desc=pdf.splitTextToSize(ex.description||'—',270) as string[];const h=Math.max(38,desc.length*11+27);if(y+h>735){pdf.addPage();y=45}pdf.setFont('helvetica','normal');pdf.setFontSize(9);pdf.text(date(ex.date),left,y);pdf.text(desc,left+82,y);pdf.text(ex.type||'—',425,y);pdf.text(dollars(parseCents(ex.amount)??0),right,y,{align:'right'});line(y+desc.length*11+9);y+=h}
