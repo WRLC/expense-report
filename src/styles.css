@@ -19,6 +19,8 @@
 /* Larger circular receipt and row actions on narrow mobile layouts only. */
 @media (max-width: 700px) {
   .receipt-actions { gap: 8px; }
+  .row-actions { gap: 8px; }
+  .receipt-count:empty { display: none; }
   .receipt-actions .icon-btn,
   .row-actions .icon-btn {
     position: relative;
