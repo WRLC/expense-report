@@ -15,3 +15,53 @@
 :root[data-theme="dark"] .total{border-color:#2d3d54;color:#b8c4d2} :root[data-theme="dark"] .total strong{color:#f3f6fb} :root[data-theme="dark"] .hint{color:#a7b5c7} :root[data-theme="dark"] .text-btn{color:#bac8d7} :root[data-theme="dark"] .preview-modal{background:#182438;color:#e5eaf2} :root[data-theme="dark"] .preview-head{color:#e5eaf2} :root[data-theme="dark"] .theme-option-copy small{color:#bdc9d7}
 :root[data-theme="dark"] .checkline{color:#d3dce8} :root[data-theme="dark"] .checkline input{accent-color:#42d6c2} :root[data-theme="dark"] .currency-field{background:#101a2a;border-color:#40516a} :root[data-theme="dark"] .currency-field>span{color:#a7b5c7} :root[data-theme="dark"] .icon-btn:hover{background:#293a52;color:#f3f6fb} :root[data-theme="dark"] .icon-btn.danger:hover{background:#4a2930;color:#ffd6d6}
 :root[data-theme="colorful"] .brand-mark,:root[data-theme="dark"] .brand-mark{filter:brightness(0) invert(1)}@media(max-width:700px){:root[data-theme="colorful"] .topbar{width:100vw;margin-left:calc(50% - 50vw);padding:10px 14px 8px;border-radius:0}}
+
+/* Larger circular receipt and row actions on narrow mobile layouts only. */
+@media (max-width: 700px) {
+  .receipt-actions { gap: 8px; }
+  .receipt-actions .icon-btn,
+  .row-actions .icon-btn {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 1px solid #cfd8f2;
+    border-radius: 50%;
+    background: #fff;
+    color: #263fa8;
+  }
+  .receipt-actions .icon-btn:hover,
+  .row-actions .icon-btn:hover { background: #edf1ff; }
+  .row-actions .icon-btn.danger { color: #a83b37; border-color: #f1d0cd; }
+  .row-actions .icon-btn.danger:hover { background: #fff0ef; }
+  .receipt-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 10px;
+    background: #f18b22;
+    color: #2b1b08;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+  }
+  :root[data-theme="dark"] .receipt-actions .icon-btn,
+  :root[data-theme="dark"] .row-actions .icon-btn {
+    background: #26364b;
+    border-color: #52657e;
+    color: #e0eaf3;
+  }
+  :root[data-theme="dark"] .receipt-actions .icon-btn:hover,
+  :root[data-theme="dark"] .row-actions .icon-btn:hover { background: #344b67; }
+  :root[data-theme="dark"] .row-actions .icon-btn.danger {
+    background: #342630;
+    border-color: #69414b;
+    color: #ffd6d6;
+  }
+  :root[data-theme="dark"] .row-actions .icon-btn.danger:hover { background: #4a2930; }
+}
