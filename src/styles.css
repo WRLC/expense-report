@@ -72,3 +72,14 @@
 .balance.owes-wrlc .direction { color: #fee4e2; }
 :root[data-theme="dark"] .balance.owes-wrlc { background: #8f1d18; color: #fff; }
 :root[data-theme="dark"] .balance.owes-wrlc .direction { color: #ffd6d2; }
+
+:root[data-theme="colorful"] .summary .balance.owes-wrlc {
+  background: #b42318;
+  color: #fff;
+}
+:root[data-theme="colorful"] .summary .balance.owes-wrlc .direction { color: #fee4e2; }
+:root[data-theme="dark"] .summary .balance.owes-wrlc {
+  background: #8f1d18;
+  color: #fff;
+}
+:root[data-theme="dark"] .summary .balance.owes-wrlc .direction { color: #ffd6d2; }
