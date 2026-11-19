@@ -39,7 +39,7 @@ export async function makePdf(report:Report, receipts:Map<string,Receipt[]>, inc
  section('CERTIFICATION');pdf.setFont('helvetica','normal');pdf.setFontSize(9);pdf.text('“I hereby certify that the above expenditures represent legitimate business expenses incurred by me.”',left,y,{maxWidth:right-left});y+=25;pdf.text(`I certify that the information entered in this expense report is complete and accurate.`,left,y,{maxWidth:right-left});y+=16;pdf.text(`Typed name: ${report.employee||'—'}     Certification date: ${date(report.certificationDate)}`,left,y);y+=34;
  // Reserve a clear, printable processing area for HR. Keep each rule below its label.
  if(y+102>740){pdf.addPage();y=48}
- section('HR PROCESSING');
+ section('SUPERVISOR APPROVAL');
  pdf.setFont('helvetica','normal');pdf.setFontSize(9);pdf.setTextColor(30,43,58);
  pdf.text('HR signature:',left,y);pdf.line(left+58,y+2,left+330,y+2);
  pdf.text('Date:',left+354,y);pdf.line(left+382,y+2,right,y+2);
