@@ -15,9 +15,9 @@ npm ci
 npm run dev
 ```
 
-## Accounting email configuration
+## Sharing and email
 
-The form includes an accounting recipient field and an employee contact email field. The **Download PDF & prepare Gmail draft** action downloads the report and opens a prefilled Gmail compose window with the employee contact and report details in the message. Attach the downloaded PDF in Gmail before sending; browsers do not allow this site to attach a local file to a Gmail draft automatically. The employee email is included in the PDF for replies.
+The **Share PDF** action uses the device's native share sheet when available. **Gmail draft** downloads the PDF and opens a prefilled Gmail compose window with the report details. Add the recipient and attach the downloaded PDF before sending. The employee contact email is included in the PDF for replies.
 
 ## Build and deploy
 
@@ -42,8 +42,12 @@ Receipt files are saved in IndexedDB on the current browser/device and restored 
 
 Each PDF contains the selected report, employee contact email, certification acknowledgement, notes, and selected receipt appendix. The old approval signature fields are omitted. A typed name is an acknowledgement, not a cryptographically verified signature. GitHub Pages is public hosting and does not authenticate employees. This app does not meet requirements for centrally managed or encrypted records.
 
+## Deduction forms
+
+The **Deduction Forms** page contains a separate **Payroll Deductions** authorization form, with a placeholder for **Retirement Contributions**. The payroll form includes additional pre-tax retirement, additional Roth retirement, and HSA deductions; per-pay-period amounts; an optional catch-up contribution indication; an effective date; and optional one-time or time-limited deduction details. Employee name and email are prefilled from Settings when available. The employee confirms the authorization with a checkbox and typed name. Use **Print / Save as PDF** to produce the form; the Payroll Use Only fields remain blank lines for completion after printing. Payroll form data is saved independently in this browser and is not included in expense report backups or clearing expense report data.
+
 ## Tests
 
 Vitest tests exercise cent-accurate calculations, validation, and report data rules. CI runs tests before deploying.
 
-The site is installable as a progressive web app. Install it from your browser's install option (or **Add to Home Screen** on iOS); the app interface can load offline after its first online visit. report forms are stored on-device and receipt images remain in browser storage.
+The site is installable as a progressive web app. Install it from your browser's install option (or **Add to Home Screen** on iOS); the app interface can load offline after its first online visit. Report forms are stored on-device and receipt images remain in browser storage.

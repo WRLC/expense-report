@@ -83,3 +83,101 @@
   color: #fff;
 }
 :root[data-theme="dark"] .summary .balance.owes-wrlc .direction { color: #ffd6d2; }
+
+.deduction-page-title { padding-top: 32px; }
+.deduction-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 18px; align-items: start; }
+.deduction-navigation { position: sticky; top: 16px; display: grid; gap: 8px; padding: 14px; }
+.deduction-nav-title { margin: 0 0 4px; color: #708090; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.deduction-nav-item { display: grid; gap: 4px; width: 100%; padding: 12px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #263746; text-align: left; font: 650 13px system-ui; cursor: pointer; }
+.deduction-nav-item span { color: #718091; font-size: 10px; font-weight: 500; }
+.deduction-nav-item:hover { background: #f3f6fc; }
+.deduction-nav-item.active { border-color: #cfd8f2; background: #edf1ff; color: #263fa8; }
+.deduction-form-area { min-width: 0; }
+.deduction-form-card { max-width: 920px; padding: 24px; }
+.deduction-document-heading { padding: 4px 0 20px; border-bottom: 2px solid #263fa8; text-align: center; }
+.deduction-document-heading p { margin: 0 0 8px; color: #536474; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.deduction-document-heading h2 { margin: 0; color: #1d2f50; font-size: 25px; }
+.deduction-document-heading>span { display: block; margin-top: 5px; color: #637587; font-size: 13px; }
+.deduction-section { padding: 20px 0; border-bottom: 1px solid #e4eaf0; }
+.deduction-section:last-of-type { border-bottom: 0; }
+.deduction-section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+.deduction-section-title>span { display: grid; place-items: center; width: 30px; height: 28px; border-radius: 6px; background: #263fa8; color: #fff; font-size: 11px; font-weight: 800; }
+.deduction-section-title h3 { margin: 0; color: #203451; font-size: 17px; }
+.deduction-fields { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; }
+.deduction-fields label,.deduction-effective-date,.deduction-section>label:not(.deduction-check) { display: grid; gap: 6px; color: #536474; font-size: 11px; font-weight: 650; }
+.deduction-instruction { margin: 18px 0 10px; color: #586a7a; font-size: 12px; }
+.deduction-options { display: grid; }
+.deduction-option { display: grid; grid-template-columns: minmax(0, 1fr) 235px; gap: 16px; align-items: center; padding: 12px 0; border-top: 1px solid #e8edf2; }
+.deduction-check { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 9px; align-items: start; color: #33485d; font-size: 12px; font-weight: 650; line-height: 1.5; }
+.deduction-check input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: #263fa8; }
+.deduction-check small { display: block; margin-top: 2px; color: #788795; font-size: 10px; font-weight: 450; line-height: 1.45; }
+.deduction-amount { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: center; color: #708090; font-size: 10px; white-space: nowrap; }
+.deduction-amount .currency-field { min-width: 0; }
+.deduction-amount input:disabled { color: #9ba7b2; background: #f5f7f9; }
+.catchup-check { margin-top: 12px; padding: 13px; border: 1px solid #e0e7f0; border-radius: 8px; background: #f7f9fc; }
+.deduction-information { margin-top: 14px; padding: 13px 14px; border-left: 4px solid #7190aa; background: #f2f5f8; color: #526779; font-size: 11px; line-height: 1.6; }
+.deduction-information p { margin: 4px 0 0; }
+.deduction-section textarea { width: 100%; min-height: 78px; padding: 10px; resize: vertical; border: 1px solid #cfd8df; border-radius: 6px; color: #293b4b; font: 13px system-ui; }
+.deduction-section textarea:focus { outline: 2px solid #3974a633; border-color: #3974a6; }
+.deduction-authorization-copy { margin: 0 0 12px; padding: 12px; border-left: 4px solid #7190aa; background: #f2f5f8; color: #536a7c; font-size: 12px; line-height: 1.55; }
+.deduction-confirmation { margin-bottom: 12px; }
+.signature-fields { grid-template-columns: minmax(0, 1fr) 210px; }
+.payroll-processing { margin-top: 3px; padding: 18px; border: 1px dashed #9eabb8; border-radius: 8px; background: #fafbfc; }
+.payroll-use-hint { margin: -4px 0 18px; color: #738292; font-size: 11px; }
+.payroll-signature-lines { display: grid; grid-template-columns: 1fr 1.5fr; gap: 28px; }
+.payroll-signature-lines>div { display: grid; gap: 20px; color: #536474; font-size: 11px; }
+.payroll-signature-lines i { display: block; height: 1px; border-bottom: 1px solid #303b45; }
+.deduction-form-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 18px; color: #7b8997; font-size: 11px; }
+.deduction-print-button { flex: none; }
+.deduction-coming-soon { max-width: 700px; padding: 35px; text-align: center; }
+.coming-soon-icon { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto 14px; border-radius: 50%; background: #edf1ff; color: #263fa8; }
+.deduction-coming-soon h2 { margin: 0; color: #203451; font-size: 21px; }
+.deduction-coming-soon>p:not(.eyebrow) { max-width: 440px; margin: 10px auto 18px; color: #687988; font-size: 12px; line-height: 1.6; }
+.deduction-notice { margin-bottom: 14px; }
+:root[data-theme="dark"] .deduction-nav-item { color: #e5eaf2; }
+:root[data-theme="dark"] .deduction-nav-item span { color: #a7b5c7; }
+:root[data-theme="dark"] .deduction-nav-item:hover,:root[data-theme="dark"] .deduction-nav-item.active { background: #263851; border-color: #43536a; color: #f5f8fc; }
+:root[data-theme="dark"] .deduction-document-heading { border-color: #42d6c2; }
+:root[data-theme="dark"] .deduction-document-heading h2,:root[data-theme="dark"] .deduction-section-title h3,:root[data-theme="dark"] .deduction-coming-soon h2 { color: #f3f6fb; }
+:root[data-theme="dark"] .deduction-section-title>span { background: #42d6c2; color: #082c2a; }
+:root[data-theme="dark"] .deduction-fields label,:root[data-theme="dark"] .deduction-effective-date,:root[data-theme="dark"] .deduction-section>label:not(.deduction-check),:root[data-theme="dark"] .deduction-check { color: #c3cedb; }
+:root[data-theme="dark"] .deduction-check small,:root[data-theme="dark"] .deduction-form-footer,:root[data-theme="dark"] .deduction-coming-soon>p:not(.eyebrow) { color: #a7b5c7; }
+:root[data-theme="dark"] .deduction-option,:root[data-theme="dark"] .deduction-section { border-color: #2d3d54; }
+:root[data-theme="dark"] .catchup-check,:root[data-theme="dark"] .deduction-information,:root[data-theme="dark"] .deduction-authorization-copy,:root[data-theme="dark"] .payroll-processing { background: #1c2c40; border-color: #40516a; color: #dce6f1; }
+:root[data-theme="dark"] .deduction-section textarea { background: #101a2a; border-color: #40516a; color: #f0f4fa; }
+:root[data-theme="dark"] .deduction-amount input:disabled { background: #182438; color: #8798ad; }
+:root[data-theme="dark"] .payroll-signature-lines>div { color: #c3cedb; }
+:root[data-theme="dark"] .payroll-signature-lines i { border-color: #a7b5c7; }
+:root[data-theme="dark"] .coming-soon-icon { background: #263851; color: #42d6c2; }
+@media (max-width: 700px) {
+  .site-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .deduction-layout { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .deduction-navigation { position: static; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; }
+  .deduction-nav-title { grid-column: 1 / -1; }
+  .deduction-nav-item { padding: 10px 8px; font-size: 11px; }
+  .deduction-form-card { padding: 16px; }
+  .deduction-document-heading h2 { font-size: 21px; }
+  .deduction-fields { grid-template-columns: minmax(0,1fr); }
+  .deduction-option { grid-template-columns: minmax(0,1fr); gap: 9px; }
+  .deduction-amount { grid-template-columns: minmax(0,1fr) auto; max-width: 330px; padding-left: 29px; }
+  .signature-fields { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  .payroll-signature-lines { grid-template-columns: 1fr; gap: 22px; }
+  .deduction-form-footer { align-items: stretch; flex-direction: column; }
+  .deduction-print-button { width: 100%; }
+  .deduction-coming-soon { padding: 26px 18px; }
+}
+@media print {
+  .topbar,.deduction-page-title,.deduction-navigation,.deduction-form-footer,.bottom-actions,.deduction-notice { display: none !important; }
+  .shell { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+  .deduction-layout { display: block !important; }
+  .deduction-form-card { max-width: none !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; }
+  .deduction-document-heading { padding-top: 0; }
+  .deduction-section { break-inside: avoid; padding: 12px 0; }
+  .deduction-section-title { margin-bottom: 10px; }
+  .deduction-option { padding: 8px 0; }
+  .deduction-amount input:disabled { opacity: 1; background: transparent; color: #293b4b; }
+  .catchup-check,.deduction-information,.deduction-authorization-copy,.payroll-processing { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .payroll-processing { break-inside: avoid; }
+  .payroll-signature-lines i { height: 18px; }
+  input,textarea { print-color-adjust: exact; }
+}
