@@ -134,6 +134,36 @@
 .deduction-coming-soon h2 { margin: 0; color: #203451; font-size: 21px; }
 .deduction-coming-soon>p:not(.eyebrow) { max-width: 440px; margin: 10px auto 18px; color: #687988; font-size: 12px; line-height: 1.6; }
 .deduction-notice { margin-bottom: 14px; }
+.retirement-form-card { max-width: 920px; }
+.retirement-intro { display: grid; gap: 5px; margin: 13px 0; padding: 10px 13px; border: 1px solid #c9d9ed; border-radius: 6px; background: #f2f6fc; color: #273d53; font-size: 11px; line-height: 1.4; text-align: center; }
+.retirement-intro strong { color: #a42b25; font-size: 12px; }
+.retirement-intro span { font-style: italic; }
+.retirement-section { padding: 11px 0; border-bottom: 1px solid #e4eaf0; color: #33485d; font-size: 11px; line-height: 1.4; }
+.retirement-section h3 { margin: 0 0 7px; padding: 4px 7px; background: #e6edf7; color: #1268ac; font-size: 13px; line-height: 1.2; }
+.retirement-section p { margin: 5px 0; }
+.retirement-effective { display: flex; align-items: center; gap: 12px; margin: 7px 0; }
+.retirement-effective input { max-width: 190px; }
+.retirement-match-options { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 5px 18px; margin: 6px 14px; }
+.retirement-match-options label,.retirement-tax-options>label,.retirement-split,.retirement-confirm { display: flex; align-items: center; gap: 8px; }
+.retirement-match-options input,.retirement-tax-options input,.retirement-confirm input { width: 16px; height: 16px; accent-color: #263fa8; }
+.retirement-legal { font-size: 10px; }
+.retirement-tax-options { display: grid; gap: 4px; margin: 7px 14px; }
+.retirement-split input[type="number"] { width: 64px; }
+.retirement-section ol { margin: 5px 0; padding-left: 22px; }
+.retirement-section li { padding-left: 3px; margin: 3px 0; }
+.retirement-employee-fields { display: grid; grid-template-columns: minmax(0,1fr) 200px; gap: 14px; margin-top: 9px; }
+.retirement-employee-fields label { display: grid; gap: 4px; color: #536474; font-size: 10px; font-weight: 650; }
+.retirement-manual-hint { color: #708090; font-size: 10px; }
+.retirement-manual-fields { display: grid; grid-template-columns: 1.3fr 1fr .8fr; gap: 16px; }
+.retirement-manual-fields label { display: grid; gap: 5px; color: #536474; font-size: 10px; }
+.retirement-manual-fields i { height: 18px; border-bottom: 1px solid #536474; }
+.retirement-confirm { align-items: flex-start; }
+.retirement-error { margin: 8px 0 0; }
+:root[data-theme="dark"] .retirement-intro { background: #1c2c40; border-color: #40516a; color: #dce6f1; }
+:root[data-theme="dark"] .retirement-intro strong { color: #ffaaa1; }
+:root[data-theme="dark"] .retirement-section { color: #c3cedb; border-color: #2d3d54; }
+:root[data-theme="dark"] .retirement-section h3 { background: #243650; color: #76c9ff; }
+:root[data-theme="dark"] .retirement-employee-fields label,:root[data-theme="dark"] .retirement-manual-fields label { color: #c3cedb; }
 :root[data-theme="dark"] .deduction-nav-item { color: #e5eaf2; }
 :root[data-theme="dark"] .deduction-nav-item span { color: #a7b5c7; }
 :root[data-theme="dark"] .deduction-nav-item:hover,:root[data-theme="dark"] .deduction-nav-item.active { background: #263851; border-color: #43536a; color: #f5f8fc; }
@@ -165,13 +195,18 @@
   .deduction-form-footer { align-items: stretch; flex-direction: column; }
   .deduction-print-button { width: 100%; }
   .deduction-coming-soon { padding: 26px 18px; }
+  .retirement-match-options { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+  .retirement-employee-fields { grid-template-columns: minmax(0,1fr); }
+  .retirement-manual-fields { grid-template-columns: 1fr; gap: 8px; }
+  .retirement-manual-fields i { height: 14px; }
+  .retirement-split { flex-wrap: wrap; }
 }
 @media print {
   @page { size: letter portrait; margin: .3in; }
   .topbar,.deduction-page-title,.deduction-navigation,.deduction-form-footer,.bottom-actions,.deduction-notice { display: none !important; }
   .shell { width: auto !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
   .deduction-layout { display: block !important; }
-  .deduction-form-card { width: 100% !important; max-width: none !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; color: #202a34 !important; }
+  .deduction-form-card { width: 100% !important; max-width: none !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; background: #fff !important; color: #202a34 !important; }
   .deduction-document-heading { padding: 0 0 7px; border-bottom-width: 1px; }
   .deduction-document-heading p { margin-bottom: 3px; color: #3f4b57; font-size: 8px; }
   .deduction-document-heading h2 { color: #172b43; font-size: 18px; }
@@ -209,4 +244,29 @@
   .payroll-signature-lines i { height: 12px; border-color: #303c48 !important; }
   .catchup-check,.deduction-information,.deduction-authorization-copy,.payroll-processing { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .deduction-print-details,.deduction-form-card input { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .retirement-agreement-form { break-after: avoid; }
+  .retirement-form-card { break-inside: avoid; }
+  .retirement-intro { gap: 3px; margin: 6px 0; padding: 6px 8px; border-radius: 2px; background: #f2f6fc !important; font-size: 8pt; line-height: 1.25; }
+  .retirement-intro strong { color: #a42b25 !important; font-size: 8.5pt; }
+  .retirement-section { break-inside: avoid; padding: 5px 0; color: #303c48 !important; font-size: 8pt; line-height: 1.27; }
+  .retirement-section h3 { margin-bottom: 5px; padding: 4px 6px; background: #e6edf7 !important; color: #1268ac !important; font-size: 9.5pt; line-height: 1.2; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .retirement-section p { margin: 4px 0; }
+  .retirement-effective { gap: 7px; margin: 4px 0; }
+  .retirement-effective input { height: 19px !important; max-width: 145px; font-size: 8px !important; }
+  .retirement-match-options { gap: 2px 12px; margin: 3px 10px; }
+  .retirement-match-options label,.retirement-tax-options>label,.retirement-split,.retirement-confirm { gap: 5px; }
+  .retirement-match-options input,.retirement-tax-options input,.retirement-confirm input { width: 12px; height: 12px; margin: 0; }
+  .retirement-legal { font-size: 7.5pt; }
+  .retirement-tax-options { gap: 2px; margin: 3px 10px; }
+  .retirement-split input[type="number"] { width: 47px; height: 18px !important; }
+  .retirement-section ol { margin: 3px 0; padding-left: 18px; }
+  .retirement-section li { margin: 2px 0; }
+  .retirement-employee-fields { grid-template-columns: minmax(0,1fr) 130px; gap: 10px; margin-top: 5px; }
+  .retirement-employee-fields label,.retirement-manual-fields label,.retirement-manual-hint { color: #485765 !important; font-size: 7.5pt; }
+  .retirement-employee-fields input { height: 21px !important; font-size: 8pt !important; }
+  .retirement-manual-fields { grid-template-columns: 1.3fr 1fr .8fr; gap: 12px; }
+  .retirement-manual-fields i { height: 12px; }
+  .retirement-manual-hint { margin: 2px 0 4px !important; }
+  .retirement-error { display: none !important; }
+  .retirement-form-card input { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
