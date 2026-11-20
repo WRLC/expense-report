@@ -46,8 +46,8 @@ export function RetirementAgreementForm({ profile }: { profile: EmployeeProfile 
 
   const printForm = () => {
     const current = draftRef.current;
-    if (!current.employeeName.trim() || !current.effectiveMonth || !current.matchElection || !current.taxElection || !current.employeeConfirmed) {
-      setError('Enter your name and effective month, choose both contribution elections, and confirm your authorization before printing.');
+    if (!current.employeeName.trim() || !current.effectiveMonth || (!current.matchElection && !current.taxElection) || !current.employeeConfirmed) {
+      setError('Enter your name and effective month, choose an election in Section 1 or Section 2, and confirm your authorization before printing.');
       return;
     }
     if (current.taxElection === 'split') {
