@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Check, Printer } from 'lucide-react';
 import type { EmployeeProfile } from '../lib/profile';
 import { loadPayrollDeductionDraft, PAYROLL_DEDUCTION_KEY, type PayrollDeductionDraft } from '../lib/payrollDeductions';
@@ -37,26 +37,43 @@ function validate(draft: PayrollDeductionDraft): Errors {
 export function DeductionForms({ profile }: { profile: EmployeeProfile }) {
   const [activeForm, setActiveForm] = useState<FormKey>('payroll');
   const [draft, setDraft] = useState<PayrollDeductionDraft>(() => loadPayrollDeductionDraft(profile));
+  const draftRef = useRef(draft);
   const [errors, setErrors] = useState<Errors>({});
   const [notice, setNotice] = useState('');
 
   const update = <K extends keyof PayrollDeductionDraft>(key: K, value: PayrollDeductionDraft[K]) => {
-    const next = { ...draft, [key]: value };
+    const next = { ...draftRef.current, [key]: value };
+    draftRef.current = next;
     setDraft(next);
+    setErrors(current => {
+      const remaining = { ...current };
+      if (key === 'employeeName') delete remaining.employeeName;
+      if (key === 'effectiveDate') delete remaining.effectiveDate;
+      if (key === 'authorizationConfirmed') delete remaining.authorization;
+      if (key === 'pretaxAmount' || key === 'rothAmount' || key === 'hsaAmount' || key === 'pretaxRetirement' || key === 'rothRetirement' || key === 'hsa') delete remaining.amount;
+      if (key === 'pretaxRetirement' || key === 'rothRetirement' || key === 'hsa') delete remaining.deduction;
+      return remaining;
+    });
     try { localStorage.setItem(PAYROLL_DEDUCTION_KEY, JSON.stringify(next)); }
     catch { setNotice('This form could not be saved in browser storage.'); return; }
     setNotice('');
   };
 
   const printForm = () => {
-    const nextErrors = validate(draft);
+    const effectiveDateInput = document.querySelector<HTMLInputElement>('#deduction-effective-date');
+    const currentDraft = effectiveDateInput ? { ...draftRef.current, effectiveDate: effectiveDateInput.value } : draftRef.current;
+    draftRef.current = currentDraft;
+    setDraft(currentDraft);
+    try { localStorage.setItem(PAYROLL_DEDUCTION_KEY, JSON.stringify(currentDraft)); }
+    catch { setNotice('This form could not be saved in browser storage.'); }
+    const nextErrors = validate(currentDraft);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
       setNotice('Review the highlighted fields before printing.');
       return;
     }
     setNotice('');
-    window.print();
+    window.requestAnimationFrame(() => window.print());
   };
 
   return <div className="deduction-page">
@@ -82,7 +99,7 @@ export function DeductionForms({ profile }: { profile: EmployeeProfile }) {
 
           <section className="deduction-section" aria-labelledby="authorization-title">
             <div className="deduction-section-title"><span>02</span><h3 id="authorization-title">Deduction Authorization</h3></div>
-            <label className="deduction-effective-date">I authorize payroll deductions for the item(s) checked below to begin on<input type="date" value={draft.effectiveDate} onChange={event => update('effectiveDate', event.target.value)} aria-invalid={!!errors.effectiveDate}/>{errors.effectiveDate && <small role="alert" className="error">{errors.effectiveDate}</small>}</label>
+            <label className="deduction-effective-date">I authorize payroll deductions for the item(s) checked below to begin on<input id="deduction-effective-date" type="date" value={draft.effectiveDate} onChange={event => update('effectiveDate', event.target.value)} onBlur={event => update('effectiveDate', event.currentTarget.value)} aria-invalid={!!errors.effectiveDate}/>{errors.effectiveDate && <small role="alert" className="error">{errors.effectiveDate}</small>}</label>
             <p className="deduction-instruction">Check each deduction that applies and enter the amount to deduct each pay period.</p>
             <div className="deduction-options">
               {OPTIONS.map(option => <div className="deduction-option" key={option.key}>
@@ -98,7 +115,7 @@ export function DeductionForms({ profile }: { profile: EmployeeProfile }) {
 
           <section className="deduction-section" aria-labelledby="details-title">
             <div className="deduction-section-title"><span>03</span><h3 id="details-title">Additional Details</h3></div>
-            <label>If the deduction is one-time, for a specified period, or toward a specific dollar goal, provide details<textarea rows={3} value={draft.specialDetails} onChange={event => update('specialDetails', event.target.value)} placeholder="For example: one-time deduction, number of pay periods, or dollar goal"/></label>
+            <label>If the deduction is one-time, for a specified period, or toward a specific dollar goal, provide details<textarea rows={3} value={draft.specialDetails} onChange={event => update('specialDetails', event.target.value)} placeholder="For example: one-time deduction, number of pay periods, or dollar goal"/><span className="deduction-print-details">{draft.specialDetails || ' '}</span></label>
           </section>
 
           <section className="deduction-section" aria-labelledby="employee-authorization-title">
