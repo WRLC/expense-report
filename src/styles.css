@@ -84,6 +84,7 @@
 :root[data-theme="dark"] .summary .balance.owes-wrlc .direction { color: #ffd6d2; }
 
 .deduction-page-title { padding-top: 32px; }
+.deduction-page > .bottom-actions { justify-content: center; align-items: center; text-align: center; }
 .deduction-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 18px; align-items: start; }
 .deduction-navigation { position: sticky; top: 16px; display: grid; gap: 8px; padding: 14px; }
 .deduction-nav-title { margin: 0 0 4px; color: #708090; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
