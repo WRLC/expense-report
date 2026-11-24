@@ -4,7 +4,7 @@ import type { EmployeeProfile } from '../lib/profile';
 
 const STORAGE_KEY = 'wrlc-expense-report:ach-authorization:v1';
 type Action = 'Add' | 'Delete' | 'Change';
-type Field = 'name' | 'address' | 'city' | 'state' | 'zip' | 'phone' | 'email' | 'bankName' | 'accountType' | 'bankAddress' | 'bankCity' | 'bankState' | 'bankZip' | 'routingNumber' | 'accountNumber' | 'signerName' | 'signerTitle' | 'signatureDate';
+type Field = 'name' | 'address' | 'city' | 'state' | 'zip' | 'phone' | 'email' | 'bankName' | 'accountType' | 'bankAddress' | 'bankCity' | 'bankState' | 'bankZip' | 'routingNumber' | 'accountNumber' | 'signerName' | 'signatureDate';
 type Draft = Record<Field, string> & { action: Action; authorized: boolean };
 
 function today() {
@@ -16,7 +16,7 @@ function createDraft(profile: EmployeeProfile): Draft {
   return {
     name: profile.name, address: '', city: '', state: '', zip: '', phone: '', email: profile.email,
     bankName: '', accountType: '', bankAddress: '', bankCity: '', bankState: '', bankZip: '', routingNumber: '', accountNumber: '',
-    signerName: profile.name, signerTitle: '', signatureDate: today(), action: 'Add', authorized: false,
+    signerName: profile.name, signatureDate: today(), action: 'Add', authorized: false,
   };
 }
 
@@ -25,7 +25,7 @@ function loadDraft(profile: EmployeeProfile): Draft {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null') as Partial<Draft> | null;
     if (!saved) return defaults;
-    const fields: Field[] = ['name', 'address', 'city', 'state', 'zip', 'phone', 'email', 'bankName', 'accountType', 'bankAddress', 'bankCity', 'bankState', 'bankZip', 'routingNumber', 'accountNumber', 'signerName', 'signerTitle', 'signatureDate'];
+    const fields: Field[] = ['name', 'address', 'city', 'state', 'zip', 'phone', 'email', 'bankName', 'accountType', 'bankAddress', 'bankCity', 'bankState', 'bankZip', 'routingNumber', 'accountNumber', 'signerName', 'signatureDate'];
     const draft = { ...defaults };
     for (const key of fields) if (typeof saved[key] === 'string') draft[key] = saved[key] as string;
     if (!draft.name.trim()) draft.name = profile.name;
@@ -77,8 +77,8 @@ export function ACHAuthorizationForm({ profile }: { profile: EmployeeProfile }) 
     if (missing) { setError(`Enter the required ${missing[1].toLowerCase()}.`); return; }
     if (!/^\d{9}$/.test(draftRef.current.routingNumber)) { setError('Enter a 9-digit bank routing number.'); return; }
     if (!/^\S+@\S+\.\S+$/.test(draftRef.current.email)) { setError('Enter a valid email address.'); return; }
-    if (!draftRef.current.signerName.trim() || !draftRef.current.signerTitle.trim() || !draftRef.current.signatureDate || !draftRef.current.authorized) {
-      setError('Enter the authorized signer name, title, and date, then confirm the authorization.');
+    if (!draftRef.current.signerName.trim() || !draftRef.current.signatureDate || !draftRef.current.authorized) {
+      setError('Enter the authorized signer name and date, then confirm the authorization.');
       return;
     }
     setError('');
@@ -109,7 +109,6 @@ export function ACHAuthorizationForm({ profile }: { profile: EmployeeProfile }) 
         <label className="checkline ach-confirm"><input type="checkbox" checked={draft.authorized} onChange={event => update('authorized', event.target.checked)}/><span>I confirm the ACH authorization requested above.</span></label>
         <div className="ach-fields ach-signer-fields">
           <label className="ach-field"><span>Authorized signer name <b aria-hidden="true">*</b></span><input value={draft.signerName} onChange={event => update('signerName', event.target.value)} autoComplete="name"/></label>
-          <label className="ach-field"><span>Title <b aria-hidden="true">*</b></span><input value={draft.signerTitle} onChange={event => update('signerTitle', event.target.value)}/></label>
           <label className="ach-field"><span>Date <b aria-hidden="true">*</b></span><input type="date" value={draft.signatureDate} onChange={event => update('signatureDate', event.target.value)}/></label>
         </div>
       </section>

@@ -175,7 +175,7 @@
 .ach-field { display: grid; gap: 5px; color: #536474; font-size: 10px; font-weight: 650; }
 .ach-field b { color: #b53832; }
 .ach-field input { font-size: 12px; }
-.ach-signer-fields { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 190px; }
+.ach-signer-fields { grid-template-columns: minmax(0,1fr) 190px; }
 .ach-confirm { margin: 0 0 12px; align-items: flex-start; }
 .ach-error { margin: 9px 0; }
 :root[data-theme="dark"] .ach-section { border-color: #2d3d54; }
@@ -311,7 +311,7 @@
   .ach-field { gap: 3px; color: #485765 !important; font-size: 8pt; }
   .ach-field b { color: #b53832 !important; }
   .ach-field input { height: 25px !important; padding: 3px 5px; font-size: 8pt !important; }
-  .ach-signer-fields { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 145px; }
+  .ach-signer-fields { grid-template-columns: minmax(0,1fr) 145px; }
   .ach-confirm { margin: 0 0 7px; color: #303c48 !important; font-size: 8pt; }
   .ach-confirm input { width: 12px; height: 12px; }
   .ach-error { display: none !important; }
