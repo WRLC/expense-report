@@ -97,7 +97,7 @@ export function ACHAuthorizationForm({ profile }: { profile: EmployeeProfile }) 
         <fieldset className="ach-actions"><legend>Select one</legend>{(['Add', 'Delete', 'Change'] as const).map(action => <label key={action}><input type="radio" name="ach-action" checked={draft.action === action} onChange={() => update('action', action)}/>{action}</label>)}</fieldset>
       </section>
       <section className="ach-section" aria-labelledby="ach-contact-title">
-        <div className="deduction-section-title"><span>02</span><h3 id="ach-contact-title">Employee information</h3></div>
+        <div className="deduction-section-title"><span>02</span><h3 id="ach-contact-title">Contact Information</h3></div>
         <div className="ach-fields">{CONTACT_FIELDS.map(renderField)}</div>
       </section>
       <section className="ach-section" aria-labelledby="ach-bank-title">
