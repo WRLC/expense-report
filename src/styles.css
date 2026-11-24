@@ -166,6 +166,7 @@
 .ach-section { padding: 12px 0; border-bottom: 1px solid #e4eaf0; }
 .ach-section .deduction-section-title { margin-bottom: 10px; }
 .ach-section .deduction-section-title h3 { margin: 0; }
+.ach-clear-button { flex: none; margin-left: auto; padding: 6px 8px; font-size: 10px; }
 .ach-actions { display: flex; align-items: center; gap: 22px; margin: 0; padding: 0; border: 0; }
 .ach-actions legend { float: left; margin-right: 12px; color: #536474; font-size: 11px; font-weight: 650; }
 .ach-actions label { display: inline-flex; align-items: center; gap: 6px; color: #33485d; font-size: 12px; font-weight: 650; }
@@ -225,6 +226,7 @@
   .ach-fields,.ach-signer-fields { grid-template-columns: minmax(0,1fr); }
   .ach-actions { justify-content: space-between; gap: 8px; }
   .ach-actions legend { width: 100%; margin: 0 0 4px; }
+  .ach-clear-button { padding: 5px 6px; font-size: 9px; }
 }
 @media print {
   @page { size: letter portrait; margin: .3in; }
@@ -295,6 +297,7 @@
   .retirement-error { display: none !important; }
   .retirement-form-card input { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .ach-form-card { break-inside: avoid; background: #fff !important; }
+  .ach-clear-button { display: none !important; }
   .ach-privacy-note { display: none !important; }
   .ach-required-note { margin: 6px 0 3px; font-size: 7pt; }
   .ach-section { break-inside: avoid; padding: 8px 0; }

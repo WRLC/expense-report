@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Printer } from 'lucide-react';
+import { Printer, Trash2 } from 'lucide-react';
 import type { EmployeeProfile } from '../lib/profile';
 
 const STORAGE_KEY = 'wrlc-expense-report:ach-authorization:v1';
@@ -59,6 +59,19 @@ export function ACHAuthorizationForm({ profile }: { profile: EmployeeProfile }) 
     setError('');
   };
 
+  const clearBankInformation = () => {
+    const next: Draft = {
+      ...draftRef.current,
+      bankName: '', accountType: '', bankAddress: '', bankCity: '', bankState: '', bankZip: '', routingNumber: '', accountNumber: '',
+      authorized: false,
+    };
+    draftRef.current = next;
+    setDraft(next);
+    setError('');
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); setNotice('Bank information cleared.'); }
+    catch { setNotice('Bank information was cleared from the form but could not be saved in browser storage.'); }
+  };
+
   const printForm = () => {
     const missing = [...CONTACT_FIELDS, ...BANK_FIELDS].find(([key]) => !draftRef.current[key].trim());
     if (missing) { setError(`Enter the required ${missing[1].toLowerCase()}.`); return; }
@@ -88,7 +101,7 @@ export function ACHAuthorizationForm({ profile }: { profile: EmployeeProfile }) 
         <div className="ach-fields">{CONTACT_FIELDS.map(renderField)}</div>
       </section>
       <section className="ach-section" aria-labelledby="ach-bank-title">
-        <div className="deduction-section-title"><span>03</span><h3 id="ach-bank-title">Bank information</h3></div>
+        <div className="deduction-section-title"><span>03</span><h3 id="ach-bank-title">Bank information</h3><button type="button" className="btn secondary ach-clear-button" onClick={clearBankInformation}><Trash2 size={14}/>Clear bank info</button></div>
         <div className="ach-fields">{BANK_FIELDS.map(renderField)}</div>
       </section>
       <section className="ach-section" aria-labelledby="ach-signature-title">
