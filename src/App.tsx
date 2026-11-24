@@ -21,11 +21,11 @@ const newAdvance = (): Advance => ({ id: crypto.randomUUID(), description: '', a
 
 type ReceiptStore = Map<string, Map<string, Receipt[]>>;
 type PropsAction<T> = T | ((current: T) => T);
-type SitePage = 'settings' | 'report' | 'deductions';
+type SitePage = 'settings' | 'report' | 'forms';
 
 function pageFromHash(): SitePage {
   if (window.location.hash === '#settings') return 'settings';
-  if (window.location.hash === '#deduction-forms') return 'deductions';
+  if (window.location.hash === '#forms' || window.location.hash === '#deduction-forms') return 'forms';
   return 'report';
 }
 
@@ -76,7 +76,7 @@ export default function App() {
   }, [theme]);
 
   const navigate = (nextPage: SitePage) => {
-    const hash = nextPage === 'settings' ? '#settings' : nextPage === 'deductions' ? '#deduction-forms' : '#report';
+    const hash = nextPage === 'settings' ? '#settings' : nextPage === 'forms' ? '#forms' : '#report';
     if (window.location.hash !== hash) window.history.pushState({}, '', hash);
     setPage(nextPage);
   };
@@ -370,7 +370,7 @@ export default function App() {
   };
 
   return <main className="shell">
-    <header className="topbar"><img className="brand-mark" src={logoUrl} alt="WRLC logo"/><div><div className="brand-overline">WASHINGTON RESEARCH LIBRARY CONSORTIUM</div><div className="brand-sub">Staff tools</div></div><nav className="site-nav" aria-label="Main navigation"><button type="button" className={page === 'report' ? 'active' : ''} onClick={() => navigate('report')} aria-current={page === 'report' ? 'page' : undefined}>Expense report</button><button type="button" className={page === 'deductions' ? 'active' : ''} onClick={() => navigate('deductions')} aria-current={page === 'deductions' ? 'page' : undefined}>Deduction Forms</button><button type="button" className={page === 'settings' ? 'active' : ''} onClick={() => navigate('settings')} aria-current={page === 'settings' ? 'page' : undefined}><SettingsIcon size={15}/>Settings</button></nav><a className="home-link" aria-label="Staff homepage" title="Staff homepage" href="https://wrlc2k.sharepoint.com/sites/WRLCStaff2/SitePages/Home.aspx"><House size={18}/><span className="sr-only">Staff homepage</span></a></header>
+    <header className="topbar"><img className="brand-mark" src={logoUrl} alt="WRLC logo"/><div><div className="brand-overline">WASHINGTON RESEARCH LIBRARY CONSORTIUM</div><div className="brand-sub">Staff tools</div></div><nav className="site-nav" aria-label="Main navigation"><button type="button" className={page === 'report' ? 'active' : ''} onClick={() => navigate('report')} aria-current={page === 'report' ? 'page' : undefined}>Expense report</button><button type="button" className={page === 'forms' ? 'active' : ''} onClick={() => navigate('forms')} aria-current={page === 'forms' ? 'page' : undefined}>Forms</button><button type="button" className={page === 'settings' ? 'active' : ''} onClick={() => navigate('settings')} aria-current={page === 'settings' ? 'page' : undefined}><SettingsIcon size={15}/>Settings</button></nav><a className="home-link" aria-label="Staff homepage" title="Staff homepage" href="https://wrlc2k.sharepoint.com/sites/WRLCStaff2/SitePages/Home.aspx"><House size={18}/><span className="sr-only">Staff homepage</span></a></header>
     {page === 'settings' ? <>
       <div aria-live="polite" role="status" className={`notice ${notice ? 'notice-visible' : ''}`}>{notice}</div>
       <div className="page-title"><div><p className="eyebrow">PREFERENCES · THIS DEVICE</p><h1>Settings</h1><p className="lede">Manage your saved employee details, reports, and app installation.</p></div></div>
@@ -382,7 +382,7 @@ export default function App() {
         <section className="card settings-card"><div className="section-head"><div><span className="step">04</span><h2>Install this app</h2></div></div><p className="settings-copy">Install WRLC Expense Report from your browser’s menu to add it to your home screen or desktop. The app shell is cached for offline use; report details and receipts remain saved on this device.</p></section>
       </div>
       <footer className="bottom-actions"><span>{store.trips.length} report{store.trips.length === 1 ? '' : 's'} autosaved to this browser.</span></footer>
-    </> : page === 'deductions' ? <DeductionForms profile={profile}/> : <>
+    </> : page === 'forms' ? <DeductionForms profile={profile}/> : <>
     <div className="page-title"><div><p className="eyebrow">FINANCE · STAFF FORM</p><h1>Expense report</h1><p className="lede">Keep expenses organized by report, then download each report when it is complete.</p></div></div>
     <div aria-live="polite" role="status" className={`notice ${notice ? 'notice-visible' : ''}`}>{notice}</div>
     <section className="trip-bar card"><div className="trip-select">{store.trips.length > 1 && <label htmlFor="active-trip">Current report<select id="active-trip" value={currentTrip.id} onChange={event => setActiveTrip(event.target.value)}>{store.trips.map((trip,index)=><option key={trip.id} value={trip.id}>{trip.name.trim() || `Untitled report ${index+1}`}</option>)}</select></label>}<label htmlFor="trip-name">Report name<input id="trip-name" value={currentTrip.name} onChange={event => renameTrip(event.target.value)} placeholder="e.g. Annual conference · Chicago" maxLength={100}/></label></div><div className="trip-actions"><button className="btn secondary" onClick={createNewTrip}><Plus/>New report</button><button className="btn text-btn" onClick={deleteCurrentTrip}><Trash2/>Delete report</button><span>{store.trips.length} report{store.trips.length===1?'':'s'} saved here</span></div></section>

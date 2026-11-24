@@ -42,9 +42,9 @@ Receipt files are saved in IndexedDB on the current browser/device and restored 
 
 Each PDF contains the selected report, employee contact email, certification acknowledgement, notes, and selected receipt appendix. The old approval signature fields are omitted. A typed name is an acknowledgement, not a cryptographically verified signature. GitHub Pages is public hosting and does not authenticate employees. This app does not meet requirements for centrally managed or encrypted records.
 
-## Deduction forms
+## Forms
 
-The **Deduction Forms** page contains a separate **Payroll Deductions** authorization form, with a placeholder for **Retirement Contributions**. The payroll form includes additional pre-tax retirement, additional Roth retirement, and HSA deductions; per-pay-period amounts; an optional catch-up contribution indication; an effective date; and optional one-time or time-limited deduction details. Employee name and email are prefilled from Settings when available. The employee confirms the authorization with a checkbox and typed name. Use **Print / Save as PDF** to produce the form; the Payroll Use Only fields remain blank lines for completion after printing. Payroll form data is saved independently in this browser and is not included in expense report backups or clearing expense report data.
+The **Forms** page contains separate **Payroll Deductions**, **Retirement Contributions**, and **ACH Authorization** forms. The payroll form includes additional pre-tax retirement, additional Roth retirement, and HSA deductions; per-pay-period amounts; an optional catch-up contribution indication; an effective date; and optional one-time or time-limited deduction details. Retirement Contributions covers the 403(b) matching election, optional Roth allocation, continuation terms, and employee authorization. ACH Authorization collects the employee and bank details, an Add/Delete/Change request, and an authorization confirmation. Employee name and email are prefilled from Settings where available. Forms save independently in this browser and provide a **Print / Save as PDF** option; WRLC processing fields remain blank for completion after printing.
 
 ## Tests
 

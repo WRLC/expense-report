@@ -159,6 +159,26 @@
 .retirement-manual-fields i { height: 18px; border-bottom: 1px solid #536474; }
 .retirement-confirm { align-items: flex-start; }
 .retirement-error { margin: 8px 0 0; }
+.ach-form-card { max-width: 920px; }
+.ach-privacy-note { margin: 8px 0 0; color: #738292; font-size: 10px; text-align: center; }
+.ach-required-note { margin: 12px 0 4px; color: #708090; font-size: 10px; text-align: right; text-transform: uppercase; font-weight: 750; letter-spacing: .06em; }
+.ach-required-note span { color: #b53832; }
+.ach-section { padding: 12px 0; border-bottom: 1px solid #e4eaf0; }
+.ach-section .deduction-section-title { margin-bottom: 10px; }
+.ach-section .deduction-section-title h3 { margin: 0; }
+.ach-actions { display: flex; align-items: center; gap: 22px; margin: 0; padding: 0; border: 0; }
+.ach-actions legend { float: left; margin-right: 12px; color: #536474; font-size: 11px; font-weight: 650; }
+.ach-actions label { display: inline-flex; align-items: center; gap: 6px; color: #33485d; font-size: 12px; font-weight: 650; }
+.ach-actions input { width: 16px; height: 16px; margin: 0; accent-color: #263fa8; }
+.ach-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px 14px; }
+.ach-field { display: grid; gap: 5px; color: #536474; font-size: 10px; font-weight: 650; }
+.ach-field b { color: #b53832; }
+.ach-field input { font-size: 12px; }
+.ach-signer-fields { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 190px; }
+.ach-confirm { margin: 0 0 12px; align-items: flex-start; }
+.ach-error { margin: 9px 0; }
+:root[data-theme="dark"] .ach-section { border-color: #2d3d54; }
+:root[data-theme="dark"] .ach-actions legend,:root[data-theme="dark"] .ach-actions label,:root[data-theme="dark"] .ach-field { color: #c3cedb; }
 :root[data-theme="dark"] .retirement-intro { background: #1c2c40; border-color: #40516a; color: #dce6f1; }
 :root[data-theme="dark"] .retirement-intro strong { color: #ffaaa1; }
 :root[data-theme="dark"] .retirement-section { color: #c3cedb; border-color: #2d3d54; }
@@ -200,6 +220,11 @@
   .retirement-manual-fields { grid-template-columns: 1fr; gap: 8px; }
   .retirement-manual-fields i { height: 14px; }
   .retirement-split { flex-wrap: wrap; }
+  .deduction-navigation { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .deduction-nav-item { min-width: 0; padding: 9px 6px; overflow-wrap: anywhere; }
+  .ach-fields,.ach-signer-fields { grid-template-columns: minmax(0,1fr); }
+  .ach-actions { justify-content: space-between; gap: 8px; }
+  .ach-actions legend { width: 100%; margin: 0 0 4px; }
 }
 @media print {
   @page { size: letter portrait; margin: .3in; }
@@ -269,4 +294,22 @@
   .retirement-manual-hint { margin: 2px 0 4px !important; }
   .retirement-error { display: none !important; }
   .retirement-form-card input { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .ach-form-card { break-inside: avoid; background: #fff !important; }
+  .ach-privacy-note { display: none !important; }
+  .ach-required-note { margin: 6px 0 3px; font-size: 7pt; }
+  .ach-section { break-inside: avoid; padding: 8px 0; }
+  .ach-section .deduction-section-title { gap: 6px; margin-bottom: 5px; }
+  .ach-section .deduction-section-title>span { width: 19px; height: 18px; font-size: 7.5px; }
+  .ach-section .deduction-section-title h3 { font-size: 10pt; }
+  .ach-actions { gap: 18px; }
+  .ach-actions legend,.ach-actions label { color: #303c48 !important; font-size: 8pt; }
+  .ach-actions input { width: 12px; height: 12px; }
+  .ach-fields { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px 10px; }
+  .ach-field { gap: 3px; color: #485765 !important; font-size: 8pt; }
+  .ach-field b { color: #b53832 !important; }
+  .ach-field input { height: 25px !important; padding: 3px 5px; font-size: 8pt !important; }
+  .ach-signer-fields { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 145px; }
+  .ach-confirm { margin: 0 0 7px; color: #303c48 !important; font-size: 8pt; }
+  .ach-confirm input { width: 12px; height: 12px; }
+  .ach-error { display: none !important; }
 }

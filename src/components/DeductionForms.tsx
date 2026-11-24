@@ -2,10 +2,11 @@ import { useRef, useState } from 'react';
 import { Printer } from 'lucide-react';
 import type { EmployeeProfile } from '../lib/profile';
 import { RetirementAgreementForm } from './RetirementAgreementForm';
+import { ACHAuthorizationForm } from './ACHAuthorizationForm';
 import { loadPayrollDeductionDraft, PAYROLL_DEDUCTION_KEY, type PayrollDeductionDraft } from '../lib/payrollDeductions';
 import { parseCents } from '../lib/calculations';
 
-type FormKey = 'payroll' | 'retirement';
+type FormKey = 'payroll' | 'retirement' | 'ach';
 type Errors = Partial<Record<'employeeName' | 'effectiveDate' | 'deduction' | 'amount' | 'authorization', string>>;
 
 type DeductionOption = {
@@ -78,16 +79,17 @@ export function DeductionForms({ profile }: { profile: EmployeeProfile }) {
   };
 
   return <div className="deduction-page">
-    <div className="page-title deduction-page-title"><div><p className="eyebrow">EMPLOYEE BENEFITS · FORMS</p><h1>Deduction Forms</h1><p className="lede">Choose a form and complete it online. Each form is saved separately on this device.</p></div></div>
+    <div className="page-title deduction-page-title"><div><p className="eyebrow">STAFF TOOLS · FORMS</p><h1>Forms</h1><p className="lede">Choose a form and complete it online. Each form is saved separately on this device.</p></div></div>
     {notice && <div aria-live="polite" role="status" className="notice notice-visible deduction-notice">{notice}</div>}
     <div className="deduction-layout">
-      <aside className="deduction-navigation card" aria-label="Deduction forms">
+      <aside className="deduction-navigation card" aria-label="Available forms">
         <p className="deduction-nav-title">AVAILABLE FORMS</p>
         <button type="button" className={`deduction-nav-item${activeForm === 'payroll' ? ' active' : ''}`} aria-current={activeForm === 'payroll' ? 'page' : undefined} onClick={() => { setActiveForm('payroll'); setNotice(''); }}>Payroll Deductions<span>Open form</span></button>
         <button type="button" className={`deduction-nav-item${activeForm === 'retirement' ? ' active' : ''}`} aria-current={activeForm === 'retirement' ? 'page' : undefined} onClick={() => { setActiveForm('retirement'); setNotice(''); }}>Retirement Contributions<span>Open form</span></button>
+        <button type="button" className={`deduction-nav-item${activeForm === 'ach' ? ' active' : ''}`} aria-current={activeForm === 'ach' ? 'page' : undefined} onClick={() => { setActiveForm('ach'); setNotice(''); }}>ACH Authorization<span>Open form</span></button>
       </aside>
 
-      {activeForm === 'retirement' ? <RetirementAgreementForm profile={profile}/> : <section className="deduction-form-area payroll-deduction-form" aria-labelledby="payroll-title">
+      {activeForm === 'retirement' ? <RetirementAgreementForm profile={profile}/> : activeForm === 'ach' ? <ACHAuthorizationForm profile={profile}/> : <section className="deduction-form-area payroll-deduction-form" aria-labelledby="payroll-title">
         <div className="card deduction-form-card">
           <div className="deduction-document-heading"><p>WASHINGTON RESEARCH LIBRARY CONSORTIUM</p><h2 id="payroll-title">Payroll Deductions</h2><span>Voluntary Payroll Deductions</span></div>
           <section className="deduction-section" aria-labelledby="employee-info-title">
@@ -136,6 +138,6 @@ export function DeductionForms({ profile }: { profile: EmployeeProfile }) {
         </div>
       </section>}
     </div>
-    <footer className="bottom-actions"><span>Payroll Deductions is saved independently from expense reports.</span></footer>
+    <footer className="bottom-actions"><span>Form data is saved independently from expense reports.</span></footer>
   </div>;
 }
